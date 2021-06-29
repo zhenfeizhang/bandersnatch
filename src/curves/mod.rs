@@ -4,7 +4,8 @@ use ark_ec::{
     twisted_edwards_extended::{GroupAffine, GroupProjective},
 };
 use ark_ff::field_new;
-use std::ops::Mul;
+// use std::ops::Mul;
+use ark_ff::Field;
 #[cfg(test)]
 mod tests;
 
@@ -65,8 +66,8 @@ impl TEModelParameters for EdwardsParameters {
     /// Multiplication by `a` is multiply by `-5`.
     #[inline(always)]
     fn mul_by_a(elem: &Self::BaseField) -> Self::BaseField {
-        let t = (*elem).mul(field_new!(Fq, "5"));
-        -t
+        let t =(*elem).double().double();
+        -(t+*elem)
     }
 }
 
