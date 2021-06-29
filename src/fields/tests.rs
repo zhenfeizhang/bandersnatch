@@ -1,8 +1,5 @@
-// use crate::fields::*;
 use crate::{Fq, Fr};
 use ark_algebra_test_templates::fields::*;
-// use ark_ff::FpParameters;
-use ark_ff::FftField;
 use ark_ff::{
     biginteger::BigInteger256 as BigInteger,
     bytes::{FromBytes, ToBytes},
@@ -12,20 +9,6 @@ use ark_ff::{
 use ark_std::rand::Rng;
 use ark_std::str::FromStr;
 use ark_std::test_rng;
-
-#[test]
-fn test_param() {
-    // let fr = FrParameters::MODULUS;
-
-    let one = Fr::from(BigInteger([1, 0, 0, 0]));
-    println!("one {:?}", one);
-
-    println!("root {:?}", Fr::two_adic_root_of_unity());
-
-    assert_eq!(Fr::two_adic_root_of_unity().pow([1 << 5]), Fr::one());
-
-    // assert!(false)
-}
 
 #[test]
 fn test_fr() {
