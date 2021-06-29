@@ -70,8 +70,8 @@ impl FpParameters for FrParameters {
     ]);
 
     /// INV = -MODULUS^{-1} mod 2^64
-    /// INV = 1036071828226808865
-    const INV: u64 = 0xe60ddd6a33f9c21;
+    /// INV = 17410672245482742751
+    const INV: u64 = 0xf19f22295cc063df;
 
     /// A multiplicative generator of the field.
     /// `Self::GENERATOR` is an element having multiplicative order

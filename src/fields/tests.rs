@@ -1,7 +1,8 @@
-use crate::fields::*;
+// use crate::fields::*;
 use crate::{Fq, Fr};
 use ark_algebra_test_templates::fields::*;
-use ark_ff::FpParameters;
+// use ark_ff::FpParameters;
+use ark_ff::FftField;
 use ark_ff::{
     biginteger::BigInteger256 as BigInteger,
     bytes::{FromBytes, ToBytes},
@@ -14,10 +15,16 @@ use ark_std::test_rng;
 
 #[test]
 fn test_param() {
-    let fr = FrParameters::MODULUS;
-    println!("{:?}", fr);
+    // let fr = FrParameters::MODULUS;
 
-    assert!(false)
+    let one = Fr::from(BigInteger([1, 0, 0, 0]));
+    println!("one {:?}", one);
+
+    println!("root {:?}", Fr::two_adic_root_of_unity());
+
+    assert_eq!(Fr::two_adic_root_of_unity().pow([1 << 5]), Fr::one());
+
+    // assert!(false)
 }
 
 #[test]
@@ -375,14 +382,14 @@ fn test_fr_add() {
     ]));
     let f2 = Fr::from(BigInteger([
         0x71875719b422efb8,
-        0x43658e68a93612,
+        0x0043658e68a93612,
         0x9fa756be2011e833,
         0xaa2b2cb08dac497,
     ]));
     let f3 = Fr::from(BigInteger([
         0x3999bd14f553edc4,
         0xb34be8fa7d8b588c,
-        0x945df3db6d1dba5,
+        0x0945df3db6d1dba5,
         0xb279f92f046d645,
     ]));
     assert_eq!(f1 + &f2, f3);
@@ -403,10 +410,10 @@ fn test_fr_mul() {
         0xaa2b2cb08dac497,
     ]));
     let f3 = Fr::from(BigInteger([
-        0x6d6618ac6b4a8381,
-        0x5b9eb35d711ee1da,
-        0xce83310e6ac4105d,
-        0x98032e0f206320a,
+        0xbe3e50c164fe3381,
+        0x5ac45bc180974585,
+        0x1c234ad6dcdc70c9,
+        0x15a75fba99bc8ad,
     ]));
     assert_eq!(f1 * &f2, f3);
 }
