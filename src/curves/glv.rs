@@ -33,10 +33,15 @@ pub trait GLVParameters: Send + Sync + 'static + ModelParameters {
     fn endomorphism(base: &Self::CurveAffine) -> Self::CurveAffine;
 
     /// decompose a scalar s into k1, k2, s.t. s = k1 + lambda k2
-    fn scalar_decomposition(k: &Self::ScalarField) -> (Self::ScalarField, Self::ScalarField);
+    fn scalar_decomposition(
+        k: &Self::ScalarField,
+    ) -> (Self::ScalarField, Self::ScalarField);
 
     /// perform GLV multiplication
-    fn glv_mul(base: &Self::CurveAffine, scalar: &Self::ScalarField) -> Self::CurveProjective;
+    fn glv_mul(
+        base: &Self::CurveAffine,
+        scalar: &Self::ScalarField,
+    ) -> Self::CurveProjective;
 }
 
 impl GLVParameters for EdwardsParameters {
@@ -93,13 +98,17 @@ impl GLVParameters for EdwardsParameters {
     // [21482638764116277775478679919733259912,
     // -113482231691339203864511368254957623327]])
 
-    const COEFF_N11: Self::ScalarField = field_new!(Fr, "113482231691339203864511368254957623327");
+    const COEFF_N11: Self::ScalarField =
+        field_new!(Fr, "113482231691339203864511368254957623327");
 
-    const COEFF_N12: Self::ScalarField = field_new!(Fr, "10741319382058138887739339959866629956");
+    const COEFF_N12: Self::ScalarField =
+        field_new!(Fr, "10741319382058138887739339959866629956");
 
-    const COEFF_N21: Self::ScalarField = field_new!(Fr, "21482638764116277775478679919733259912");
+    const COEFF_N21: Self::ScalarField =
+        field_new!(Fr, "21482638764116277775478679919733259912");
 
-    const COEFF_N22: Self::ScalarField = field_new!(Fr, "-113482231691339203864511368254957623327");
+    const COEFF_N22: Self::ScalarField =
+        field_new!(Fr, "-113482231691339203864511368254957623327");
 
     /// Mapping a point G to phi(G):= lambda G where phi is the endomorphism
     fn endomorphism(base: &Self::CurveAffine) -> Self::CurveAffine {
@@ -121,7 +130,9 @@ impl GLVParameters for EdwardsParameters {
 
     /// Decompose a scalar s into k1, k2, s.t. s = k1 + lambda k2
     /// via a Babai's nearest plane algorithm.
-    fn scalar_decomposition(scalar: &Self::ScalarField) -> (Self::ScalarField, Self::ScalarField) {
+    fn scalar_decomposition(
+        scalar: &Self::ScalarField,
+    ) -> (Self::ScalarField, Self::ScalarField) {
         let tmp: BigInteger256 = (*scalar).into();
         let scalar_z: BigUint = tmp.into();
 
@@ -152,7 +163,10 @@ impl GLVParameters for EdwardsParameters {
     }
 
     /// perform GLV multiplication
-    fn glv_mul(base: &Self::CurveAffine, scalar: &Self::ScalarField) -> Self::CurveProjective {
+    fn glv_mul(
+        base: &Self::CurveAffine,
+        scalar: &Self::ScalarField,
+    ) -> Self::CurveProjective {
         let psi_base = Self::endomorphism(&base);
         let (k1, k2) = Self::scalar_decomposition(scalar);
         multi_scalar_mul(&base, &k1, &psi_base, &k2)
@@ -173,7 +187,8 @@ pub fn multi_scalar_mul(
     let mut b2 = (*endor_base).into_projective();
     let mut s2 = *scalar_2;
 
-    let r_over_2: Fr = <FrParameters as FpParameters>::MODULUS_MINUS_ONE_DIV_TWO.into();
+    let r_over_2: Fr =
+        <FrParameters as FpParameters>::MODULUS_MINUS_ONE_DIV_TWO.into();
 
     if s1 > r_over_2 {
         b1 = -b1;

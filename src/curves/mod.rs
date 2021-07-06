@@ -7,7 +7,7 @@ use ark_ff::{field_new, Field};
 
 mod glv;
 
-pub use glv::{GLVParameters, multi_scalar_mul};
+pub use glv::{multi_scalar_mul, GLVParameters};
 
 #[cfg(test)]
 mod tests;
@@ -67,7 +67,8 @@ impl TEModelParameters for EdwardsParameters {
     );
 
     /// AFFINE_GENERATOR_COEFFS = (GENERATOR_X, GENERATOR_Y)
-    const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField) = (GENERATOR_X, GENERATOR_Y);
+    const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField) =
+        (GENERATOR_X, GENERATOR_Y);
 
     type MontgomeryModelParameters = EdwardsParameters;
 

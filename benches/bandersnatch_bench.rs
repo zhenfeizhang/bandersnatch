@@ -24,7 +24,6 @@ criterion_group!(
     bench_bls12_377_g2
 );
 
-
 criterion_main!(bandersnatch_bench);
 
 fn bench_decomposition(c: &mut Criterion) {
@@ -63,7 +62,9 @@ fn bench_msm(c: &mut Criterion) {
         let r = bandersnatch::Fr::rand(&mut rng);
         let (r1, r2) = EdwardsParameters::scalar_decomposition(&r);
 
-        b.iter(|| bandersnatch::multi_scalar_mul(&base_point, &r1, &psi_point, &r2))
+        b.iter(|| {
+            bandersnatch::multi_scalar_mul(&base_point, &r1, &psi_point, &r2)
+        })
     });
     bench_group.finish();
 }
@@ -75,7 +76,8 @@ fn bench_bandersnatch(c: &mut Criterion) {
     let mut bytes = [0u8; 32];
     rng.fill_bytes(&mut bytes);
 
-    let mut base_point = bandersnatch::EdwardsAffine::prime_subgroup_generator();
+    let mut base_point =
+        bandersnatch::EdwardsAffine::prime_subgroup_generator();
 
     let mut rng = ChaCha20Rng::from_seed([0u8; 32]);
     let bench_str = format!("glv mul");
@@ -104,9 +106,11 @@ fn bench_jubjub(c: &mut Criterion) {
     let mut bytes = [0u8; 32];
     rng.fill_bytes(&mut bytes);
 
-    let mut base_point = ark_ed_on_bls12_381::EdwardsAffine::prime_subgroup_generator();
+    let mut base_point =
+        ark_ed_on_bls12_381::EdwardsAffine::prime_subgroup_generator();
     let mut random_point =
-        ark_ed_on_bls12_381::EdwardsAffine::from_random_bytes(bytes.as_ref()).unwrap();
+        ark_ed_on_bls12_381::EdwardsAffine::from_random_bytes(bytes.as_ref())
+            .unwrap();
 
     let bench_str = format!("random base mul");
     bench_group.bench_function(bench_str, move |b| {
@@ -134,9 +138,11 @@ fn bench_ed_on_bls_12_377(c: &mut Criterion) {
     let mut bytes = [0u8; 32];
     rng.fill_bytes(&mut bytes);
 
-    let mut base_point = ark_ed_on_bls12_377::EdwardsAffine::prime_subgroup_generator();
+    let mut base_point =
+        ark_ed_on_bls12_377::EdwardsAffine::prime_subgroup_generator();
     let mut random_point =
-        ark_ed_on_bls12_377::EdwardsAffine::from_random_bytes(bytes.as_ref()).unwrap();
+        ark_ed_on_bls12_377::EdwardsAffine::from_random_bytes(bytes.as_ref())
+            .unwrap();
 
     let bench_str = format!("random base mul");
     bench_group.bench_function(bench_str, move |b| {

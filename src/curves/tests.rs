@@ -152,7 +152,8 @@ fn test_msm() {
     .unwrap();
 
     let tmp = base_point.mul(scalar);
-    let res2 = super::glv::multi_scalar_mul(&base_point, &k1, &psi_point, &k2).into_affine();
+    let res2 = super::glv::multi_scalar_mul(&base_point, &k1, &psi_point, &k2)
+        .into_affine();
 
     assert_eq!(tmp.into_affine(), res);
     assert_eq!(res, res2);
