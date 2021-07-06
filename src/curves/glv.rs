@@ -162,7 +162,7 @@ impl GLVParameters for EdwardsParameters {
 // Here we need to implement a customized MSM algorithm, since we know that
 // the high bits of Fr are restricted to be small, i.e. ~ 128 bits.
 // This MSM will save us some 128 doublings.
-pub(crate) fn multi_scalar_mul(
+pub fn multi_scalar_mul(
     base: &crate::EdwardsAffine,
     scalar_1: &Fr,
     endor_base: &crate::EdwardsAffine,

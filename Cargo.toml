@@ -20,10 +20,27 @@ num-bigint = { version = "0.4.0", default-features = false }
 
 
 [dev-dependencies]
+# testing
 ark-relations = { version = "^0.3.0", default-features = false }
 ark-serialize = { version = "^0.3.0", default-features = false }
 ark-algebra-test-templates = { version = "^0.3.0", default-features = false }
 ark-curve-constraint-tests = { version = "^0.3.0", default-features = false }
+
+# benchmarking 
+ark-ed-on-bls12-381 = { version = "0.3.0", default-features = false }
+ark-bls12-381 = { version = "0.3.0", default-features = false, features = [ "curve" ] }
+
+ark-ed-on-bls12-377 = { version = "0.3.0", default-features = false }
+ark-bls12-377 = { version = "0.3.0", default-features = false, features = [ "curve" ] }
+
+rand_chacha = { version = "0.3.0", default-features = false }
+
+bencher = "0.1.5"
+criterion = "0.3.4"
+
+[[bench]]
+name = "bandersnatch_bench"
+harness = false
 
 [features]
 default = []
