@@ -25,6 +25,8 @@ criterion_group!(
     bench_bls12_377_g1,
     bench_bls12_377_g2,
     bench_bls12_377_pairing,
+    bench_blst_g1,
+    bench_blst_g2,
 );
 
 criterion_main!(bandersnatch_bench);
@@ -340,6 +342,66 @@ fn bench_bls12_377_pairing(c: &mut Criterion) {
 
         b.iter(|| {
             let _ = ark_bls12_377::Bls12_377::pairing(g1, g2);
+        })
+    });
+
+    bench_group.finish();
+}
+
+fn bench_blst_g1(c: &mut Criterion) {
+    let mut bench_group = c.benchmark_group("blst/bls12-381 g1");
+
+    let mut rng = ChaCha20Rng::from_seed([0u8; 32]);
+    let mut ikm = [0u8; 32];
+    rng.fill_bytes(&mut ikm);
+
+    let sk = blst::min_pk::SecretKey::key_gen(&ikm, &[]).unwrap();
+
+    let bench_str = format!("fixed base mul");
+    bench_group.bench_function(bench_str, move |b| {
+        b.iter(|| {
+            let _ = sk.sk_to_pk();
+        })
+    });
+
+    // the following code is cleaner but there is some memory overflow
+    // let pk = sk.sk_to_pk();
+    // let mut g = unsafe { blst::blst_p1_generator() };
+    // let mut res = unsafe { blst::blst_p1_generator() as *mut blst_p1 };
+    // // let mut f = g;
+    // // let mut res: *mut blst_p1 = h;
+    // // let mut f = unsafe { *(::std::ptr::null::<blst_p1>()) };
+    // // let mut res = unsafe { *(::std::ptr::null::<blst_p1>()) };
+
+    // let r = ark_bls12_381::Fr::rand(&mut rng);
+    // let mut r_bytes = vec![0u8; 32];
+    // // r.serialize(&mut r_bytes).unwrap();
+    // let r_pt = r_bytes.as_ptr();
+
+    // unsafe { blst::blst_p1_mult(res, g, r_pt, 0) }
+
+    // let bench_str = format!("fixed base mul");
+    // bench_group.bench_function(bench_str, move |b| {
+    //     // b.iter(|| unsafe { blst::blst_p1_mult(&mut res, &f, r_pt, 256) })
+    // });
+
+    bench_group.finish();
+}
+
+fn bench_blst_g2(c: &mut Criterion) {
+    let mut bench_group = c.benchmark_group("blst/bls12-381 g2");
+
+    let mut rng = ChaCha20Rng::from_seed([0u8; 32]);
+
+    let mut ikm = [0u8; 32];
+    rng.fill_bytes(&mut ikm);
+
+    let sk = blst::min_sig::SecretKey::key_gen(&ikm, &[]).unwrap();
+
+    let bench_str = format!("fixed base mul");
+    bench_group.bench_function(bench_str, move |b| {
+        b.iter(|| {
+            let _ = sk.sk_to_pk();
         })
     });
 

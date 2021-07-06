@@ -19,7 +19,7 @@ There was also a Python reference implementation [here](https://github.com/asans
     - [ ] R1CS for GLV multiplication
     - [ ] Documentation coverage
     - [ ] Test coverage
-    - [ ] Update benchmark data for Benchmark section.
+    - [x] Update benchmark data for Benchmark section.
 
 # Howto
 
