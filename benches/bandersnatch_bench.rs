@@ -2,6 +2,7 @@
 extern crate criterion;
 
 use ark_ec::AffineCurve;
+use ark_ec::PairingEngine;
 use ark_ec::ProjectiveCurve;
 use ark_std::ops::MulAssign;
 use ark_std::rand::{RngCore, SeedableRng};
@@ -20,8 +21,10 @@ criterion_group!(
     bench_ed_on_bls_12_377,
     bench_bls12_381_g1,
     bench_bls12_381_g2,
+    bench_bls12_381_pairing,
     bench_bls12_377_g1,
-    bench_bls12_377_g2
+    bench_bls12_377_g2,
+    bench_bls12_377_pairing,
 );
 
 criterion_main!(bandersnatch_bench);
@@ -227,6 +230,32 @@ fn bench_bls12_381_g2(c: &mut Criterion) {
     bench_group.finish();
 }
 
+fn bench_bls12_381_pairing(c: &mut Criterion) {
+    let mut bench_group = c.benchmark_group("BLS12-381 curve pairing");
+
+    let mut rng = ChaCha20Rng::from_seed([0u8; 32]);
+
+    let mut g1 =
+        ark_bls12_381::G1Affine::prime_subgroup_generator().into_projective();
+    let mut g2 =
+        ark_bls12_381::G2Affine::prime_subgroup_generator().into_projective();
+
+    let bench_str = format!("random base pairing");
+    bench_group.bench_function(bench_str, move |b| {
+        let r1 = ark_bls12_381::Fr::rand(&mut rng);
+        let r2 = ark_bls12_381::Fr::rand(&mut rng);
+
+        g1.mul_assign(r1);
+        g2.mul_assign(r2);
+
+        b.iter(|| {
+            let _ = ark_bls12_381::Bls12_381::pairing(g1, g2);
+        })
+    });
+
+    bench_group.finish();
+}
+
 fn bench_bls12_377_g1(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group("BLS12-377 curve G1");
 
@@ -285,6 +314,32 @@ fn bench_bls12_377_g2(c: &mut Criterion) {
         let r = ark_bls12_377::Fr::rand(&mut rng);
         b.iter(|| {
             let _ = random_point.mul(r);
+        })
+    });
+
+    bench_group.finish();
+}
+
+fn bench_bls12_377_pairing(c: &mut Criterion) {
+    let mut bench_group = c.benchmark_group("BLS12-377 curve pairing");
+
+    let mut rng = ChaCha20Rng::from_seed([0u8; 32]);
+
+    let mut g1 =
+        ark_bls12_377::G1Affine::prime_subgroup_generator().into_projective();
+    let mut g2 =
+        ark_bls12_377::G2Affine::prime_subgroup_generator().into_projective();
+
+    let bench_str = format!("random base pairing");
+    bench_group.bench_function(bench_str, move |b| {
+        let r1 = ark_bls12_377::Fr::rand(&mut rng);
+        let r2 = ark_bls12_377::Fr::rand(&mut rng);
+
+        g1.mul_assign(r1);
+        g2.mul_assign(r2);
+
+        b.iter(|| {
+            let _ = ark_bls12_377::Bls12_377::pairing(g1, g2);
         })
     });
 
