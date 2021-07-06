@@ -1,7 +1,7 @@
 bandersnatch-rust
 ------
-__This repo is upstreamed to Arkworks [curve](https://github.com/arkworks-rs/curves/) crate and is no longer maintained__
 
+This repo is upstreamed to Arkworks [curve](https://github.com/arkworks-rs/curves/) crate.
 
 Implementing [Bendersnatch curve](https://ethresear.ch/t/introducing-bandersnatch-a-fast-elliptic-curve-built-over-the-bls12-381-scalar-field/9957) using [Arkwork](https://github.com/arkworks-rs/curves)'s framework in Rust.
 

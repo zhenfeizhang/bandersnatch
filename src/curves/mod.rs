@@ -3,9 +3,12 @@ use ark_ec::{
     models::{ModelParameters, MontgomeryModelParameters, TEModelParameters},
     twisted_edwards_extended::{GroupAffine, GroupProjective},
 };
-use ark_ff::field_new;
-// use std::ops::Mul;
-use ark_ff::Field;
+use ark_ff::{field_new, Field};
+
+mod glv;
+
+pub use glv::GLVParameters;
+
 #[cfg(test)]
 mod tests;
 
@@ -21,7 +24,8 @@ pub type EdwardsProjective = GroupProjective<EdwardsParameters>;
 /// q = 52435875175126190479447740508185965837690552500527637822603658699938581184513.
 ///
 /// a = 52435875175126190479447740508185965837690552500527637822603658699938581184508.
-/// d = (138827208126141220649022263972958607803/171449701953573178309673572579671231137) mod q
+/// d = (138827208126141220649022263972958607803/
+///     171449701953573178309673572579671231137) mod q
 ///   = 45022363124591815672509500913686876175488063829319466900776701791074614335719.
 ///
 /// Sage script to calculate these:
@@ -32,7 +36,7 @@ pub type EdwardsProjective = GroupProjective<EdwardsParameters>;
 /// d = (Fq(138827208126141220649022263972958607803)/Fq(171449701953573178309673572579671231137))
 /// ```
 /// These parameters and the sage script obtained from:
-/// <https://github.com/zcash/zcash/issues/2230#issuecomment-317182190>
+/// <https://github.com/asanso/Bandersnatch/>
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct EdwardsParameters;
 
@@ -42,21 +46,25 @@ impl ModelParameters for EdwardsParameters {
 }
 
 impl TEModelParameters for EdwardsParameters {
-    /// COEFF_A = -1
-    #[rustfmt::skip]
+    /// COEFF_A = -5
     const COEFF_A: Fq = field_new!(Fq, "-5");
 
-    /// COEFF_D = (138827208126141220649022263972958607803/171449701953573178309673572579671231137) mod q
-    #[rustfmt::skip]
-    const COEFF_D: Fq = field_new!(Fq, "45022363124591815672509500913686876175488063829319466900776701791074614335719");
+    /// COEFF_D = (138827208126141220649022263972958607803/
+    /// 171449701953573178309673572579671231137) mod q
+    const COEFF_D: Fq = field_new!(
+        Fq,
+        "45022363124591815672509500913686876175488063829319466900776701791074614335719"
+    );
 
     /// COFACTOR = 4
     const COFACTOR: &'static [u64] = &[4];
 
     /// COFACTOR^(-1) mod r =
     /// 9831726595336160714896451345284868594481866920080427688839802480047265754601
-    #[rustfmt::skip]
-    const COFACTOR_INV: Fr = field_new!(Fr, "9831726595336160714896451345284868594481866920080427688839802480047265754601");
+    const COFACTOR_INV: Fr = field_new!(
+        Fr,
+        "9831726595336160714896451345284868594481866920080427688839802480047265754601"
+    );
 
     /// AFFINE_GENERATOR_COEFFS = (GENERATOR_X, GENERATOR_Y)
     const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField) = (GENERATOR_X, GENERATOR_Y);
@@ -66,18 +74,23 @@ impl TEModelParameters for EdwardsParameters {
     /// Multiplication by `a` is multiply by `-5`.
     #[inline(always)]
     fn mul_by_a(elem: &Self::BaseField) -> Self::BaseField {
-        let t =(*elem).double().double();
-        -(t+*elem)
+        let t = (*elem).double().double();
+        -(t + *elem)
     }
 }
 
 impl MontgomeryModelParameters for EdwardsParameters {
     /// COEFF_A = 29978822694968839326280996386011761570173833766074948509196803838190355340952
-    #[rustfmt::skip]
-    const COEFF_A: Fq = field_new!(Fq, "29978822694968839326280996386011761570173833766074948509196803838190355340952");
+    const COEFF_A: Fq = field_new!(
+        Fq,
+        "29978822694968839326280996386011761570173833766074948509196803838190355340952"
+    );
+
     /// COEFF_B = 25465760566081946422412445027709227188579564747101592991722834452325077642517
-    #[rustfmt::skip]
-    const COEFF_B: Fq = field_new!(Fq, "25465760566081946422412445027709227188579564747101592991722834452325077642517");
+    const COEFF_B: Fq = field_new!(
+        Fq,
+        "25465760566081946422412445027709227188579564747101592991722834452325077642517"
+    );
 
     type TEModelParameters = EdwardsParameters;
 }
@@ -88,7 +101,13 @@ impl MontgomeryModelParameters for EdwardsParameters {
 //      11575885077368931610486103676191793534029821920164915325066801506752632626968,
 //      14458123306641001284399433086015669988340559992755622870694102351476334505845,
 //      C)
-#[rustfmt::skip]
-const GENERATOR_X: Fq = field_new!(Fq, "29627151942733444043031429156003786749302466371339015363120350521834195802525");
-#[rustfmt::skip]
-const GENERATOR_Y: Fq = field_new!(Fq, "27488387519748396681411951718153463804682561779047093991696427532072116857978");
+
+const GENERATOR_X: Fq = field_new!(
+    Fq,
+    "29627151942733444043031429156003786749302466371339015363120350521834195802525"
+);
+
+const GENERATOR_Y: Fq = field_new!(
+    Fq,
+    "27488387519748396681411951718153463804682561779047093991696427532072116857978"
+);
