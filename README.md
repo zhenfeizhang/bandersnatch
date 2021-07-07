@@ -25,9 +25,19 @@ There was also a Python reference implementation [here](https://github.com/asans
 
 ## API docs
 
-`cargo doc --open`
+```
+cargo doc --open
+```
 
 ## Benchmarks
 
-`cargo bench`
+```
+cargo bench
+```
 
+## Examples
+Counting the number of constraints in group operations
+```
+cargo run --example constraint_count_bandersnatch
+cargo run --example constraint_count_jubjub
+```

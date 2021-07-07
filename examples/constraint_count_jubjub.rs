@@ -1,6 +1,6 @@
 use ark_ec::{AffineCurve, ProjectiveCurve};
 use ark_ed_on_bls12_381::{EdwardsAffine, EdwardsParameters, Fq, Fr};
-use ark_ff::{BigInteger, UniformRand};
+use ark_ff::{BigInteger, PrimeField, UniformRand};
 use ark_r1cs_std::{
     alloc::AllocVar,
     boolean::Boolean,
@@ -17,9 +17,9 @@ fn main() {
     // in this example we are going to argue about the statement
     //      H = xG
     // for some private H, x and G, where
-    //  - G is a bandersnatch group element in the Affine form,
+    //  - G is a Jubjub group element in the Affine form,
     //  - x is a scalar field element
-    //  - H is a bandersnatch group element in the Project form,
+    //  - H is a Jubjub group element in the Affine form,
 
     let mut rng = ark_std::test_rng();
 
@@ -31,10 +31,6 @@ fn main() {
         scalar: x,
         res: point_h,
     };
-
-    // println!("{:?}", point_g);
-    // println!("{:?}", x);
-    // println!("{:?}", point_h);
 
     let sanity_cs = ConstraintSystem::<Fq>::new_ref();
 
@@ -67,7 +63,7 @@ impl ConstraintSynthesizer<Fq> for GroupOpCircuit {
         let _cs_no = cs.num_constraints();
 
         let mut scalar_bits_var = vec![];
-        for e in self.scalar.0.to_bits_le() {
+        for e in self.scalar.into_repr().to_bits_be() {
             scalar_bits_var.push(Boolean::new_witness(cs.clone(), || Ok(e))?)
         }
 

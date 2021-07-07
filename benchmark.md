@@ -11,6 +11,14 @@ AMD 5900x; ubuntu 20.04; arkworks 0.3.0; rust 1.52.1
 | scalar decomposition| 0.75 us|
 | multi-scalar-mult | 41.5 us|
 
+# \# constraints
+
+| | \# constraints for 1 group op|
+|:---|---| 
+| Jubjub |3325|
+| Bandersantch without GLV |  3325 |
+| Bandersantch with GLV| |
+
 # Edward curves ops
 
 |   | bandersnatch (without GLV)| bandersnatch (without GLV)| Jubjub | ed_on_bls12_377|
