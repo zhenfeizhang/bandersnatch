@@ -73,3 +73,6 @@ where
         todo!()
     }
 }
+
+#[test]
+fn test_glv_var() {}

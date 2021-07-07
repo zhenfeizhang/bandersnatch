@@ -3,7 +3,7 @@ name = "bandersnatch"
 version = "0.1.0"
 authors = [ "zhenfei zhang" ]
 description = "Bandersnatch: a curve defined over the scalar field of the BLS12-381 curve"
-repository = "https://github.com/zhenfeizhang/bandersnatch-rust"
+repository = "https://github.com/zhenfeizhang/bandersnatch"
 keywords = ["cryptography", "finite-fields", "elliptic-curves" ]
 categories = ["cryptography"]
 include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
@@ -26,6 +26,7 @@ ark-relations = { version = "^0.3.0", default-features = false }
 ark-serialize = { version = "^0.3.0", default-features = false }
 ark-algebra-test-templates = { version = "^0.3.0", default-features = false }
 ark-curve-constraint-tests = { version = "^0.3.0", default-features = false }
+ark-groth16 = { version = "0.3.0", default-features = false, features = [ "r1cs" ] }
 
 # benchmarking 
 ark-ed-on-bls12-381 = { version = "0.3.0", default-features = false }

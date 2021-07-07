@@ -63,7 +63,7 @@ impl ConstraintSynthesizer<Fq> for GroupOpCircuit {
         let _cs_no = cs.num_constraints();
 
         let mut scalar_bits_var = vec![];
-        for e in self.scalar.into_repr().to_bits_be() {
+        for e in self.scalar.into_repr().to_bits_le() {
             scalar_bits_var.push(Boolean::new_witness(cs.clone(), || Ok(e))?)
         }
 
@@ -72,7 +72,7 @@ impl ConstraintSynthesizer<Fq> for GroupOpCircuit {
         let _cs_no = cs.num_constraints();
 
         let res_var_recomputed =
-            base_var.scalar_mul_le(scalar_bits_var.iter().rev())?;
+            base_var.scalar_mul_le(scalar_bits_var.iter())?;
 
         #[cfg(debug_assertions)]
         println!("cs for mul : {}", cs.num_constraints() - _cs_no);
