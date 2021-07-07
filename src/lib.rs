@@ -1,7 +1,8 @@
-#![cfg_attr(not(feature = "std"), no_std)]
+// #![cfg_attr(not(feature = "std"), no_std)]
+#![no_std]
 #![deny(
-    warnings,
-    unused,
+    // warnings,
+    // unused,
     future_incompatible,
     nonstandard_style,
     rust_2018_idioms
@@ -22,7 +23,11 @@
 //!    * a = -1
 //!    * d = -(10240/10241)
 
-#[cfg(feature = "r1cs")]
+#[cfg(test)]
+#[macro_use]
+extern crate std;
+
+// #[cfg(feature = "r1cs")]
 pub mod constraints;
 mod curves;
 mod fields;

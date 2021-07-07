@@ -1,6 +1,5 @@
 use crate::{EdwardsParameters, Fq, Fr, FrParameters};
-use ark_ec::ModelParameters;
-use ark_ec::{AffineCurve, ProjectiveCurve};
+use ark_ec::{AffineCurve, ModelParameters, ProjectiveCurve};
 use ark_ff::{field_new, BigInteger, BigInteger256, FpParameters, One};
 use ark_std::{cmp::max, Zero};
 use num_bigint::BigUint;

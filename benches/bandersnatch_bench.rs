@@ -1,12 +1,12 @@
 #[macro_use]
 extern crate criterion;
 
-use ark_ec::AffineCurve;
-use ark_ec::PairingEngine;
-use ark_ec::ProjectiveCurve;
-use ark_std::ops::MulAssign;
-use ark_std::rand::{RngCore, SeedableRng};
-use ark_std::UniformRand;
+use ark_ec::{AffineCurve, PairingEngine, ProjectiveCurve};
+use ark_std::{
+    ops::MulAssign,
+    rand::{RngCore, SeedableRng},
+    UniformRand,
+};
 use bandersnatch::{EdwardsParameters, GLVParameters};
 use criterion::Criterion;
 use rand_chacha::ChaCha20Rng;

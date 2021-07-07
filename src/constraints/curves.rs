@@ -1,5 +1,4 @@
-use crate::constraints::FqVar;
-use crate::*;
+use crate::{constraints::FqVar, *};
 use ark_r1cs_std::groups::curves::twisted_edwards::AffineVar;
 
 /// A variable that is the R1CS equivalent of `crate::EdwardsAffine`.
