@@ -4,7 +4,7 @@ use ark_ec::{
 };
 use ark_ff::Field;
 use ark_r1cs_std::{
-    groups::curves::short_weierstrass::ProjectiveVar,
+    groups::curves::short_weierstrass::AffineVar,
     prelude::{
         AllocVar, CondSelectGadget, CurveVar, EqGadget, FieldOpsBounds,
         FieldVar, GroupOpsBounds,
@@ -15,6 +15,8 @@ use ark_std::{
     fmt::Debug,
     ops::{AddAssign, SubAssign},
 };
+use crate::{constraints::FqVar, GLVParameters, EdwardsParameters};
+
 
 /// This GLVVar trait inherit the CurveVar trait
 pub trait GLVVar<C: ProjectiveCurve, ConstraintF: Field>:
@@ -52,13 +54,29 @@ pub trait GLVVar<C: ProjectiveCurve, ConstraintF: Field>:
 }
 
 impl<P, F> GLVVar<GroupProjective<P>, <P::BaseField as Field>::BasePrimeField>
-    for ProjectiveVar<P, F>
+    for AffineVar<P, F>
 where
     P: SWModelParameters,
     F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
     fn endomorphism(&self) -> Self {
+        let coeff_a1_var = FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_A1);
+        let coeff_a2_var = FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_A2);
+        let coeff_a3_var = FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_A3);
+        let coeff_b1_var = FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_B1);
+        let coeff_b2_var = FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_B2);
+        let coeff_b3_var = FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_B3);
+        let coeff_c1_var = FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_C1);
+        let coeff_c1_var = FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_C2);
+
+        let x_var: FqVar = self.x.clone();
+        let y_var = self.y.clone().into();
+        let z_var = y_var;
+
+        let fy = coeff_a1_var * (y_var + coeff_a2_var) * (y_var + coeff_a3_var);
+
+
         todo!()
     }
 

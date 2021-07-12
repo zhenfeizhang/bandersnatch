@@ -1,6 +1,6 @@
 use crate::{Fq, Fr};
 use ark_ec::{
-    models::{ModelParameters, MontgomeryModelParameters, TEModelParameters},
+    models::{ModelParameters, MontgomeryModelParameters, TEModelParameters, SWModelParameters},
     twisted_edwards_extended::{GroupAffine, GroupProjective},
 };
 use ark_ff::{field_new, Field};
@@ -112,3 +112,28 @@ const GENERATOR_Y: Fq = field_new!(
     Fq,
     "27488387519748396681411951718153463804682561779047093991696427532072116857978"
 );
+
+// impl SWModelParameters for EdwardsParameters {
+//     const COEFF_A: Self::BaseField;
+//     const COEFF_B: Self::BaseField;
+//     const COFACTOR: &'static [u64];
+//     const COFACTOR_INV: Self::ScalarField;
+//     const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField);
+
+//     #[inline(always)]
+//     fn mul_by_a(elem: &Self::BaseField) -> Self::BaseField {
+//         let mut copy = *elem;
+//         copy *= &Self::COEFF_A;
+//         copy
+//     }
+
+//     #[inline(always)]
+//     fn add_b(elem: &Self::BaseField) -> Self::BaseField {
+//         if !Self::COEFF_B.is_zero() {
+//             let mut copy = *elem;
+//             copy += &Self::COEFF_B;
+//             return copy;
+//         }
+//         *elem
+//     }
+// }
