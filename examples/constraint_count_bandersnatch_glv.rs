@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use ark_ec::{AffineCurve, ProjectiveCurve};
 use ark_ff::{BigInteger, PrimeField, UniformRand};
 use ark_r1cs_std::{
@@ -65,9 +67,14 @@ impl ConstraintSynthesizer<Fq> for GroupOpCircuit {
             || Ok(self.base),
         )
         .unwrap();
-
         #[cfg(debug_assertions)]
         println!("cs for base var: {}", cs.num_constraints() - _cs_no);
+        let _cs_no = cs.num_constraints();
+
+        let phi_var = endomorphism_gadget(&base_var);
+
+        #[cfg(debug_assertions)]
+        println!("cs for endomorphism var: {}", cs.num_constraints() - _cs_no);
         let _cs_no = cs.num_constraints();
 
         let mut scalar_bits_var = vec![];
@@ -107,8 +114,8 @@ impl ConstraintSynthesizer<Fq> for GroupOpCircuit {
 }
 
 fn endomorphism_gadget(
-    base_point: AffineVar<EdwardsParameters, FqVar>,
-    cs: ConstraintSystemRef<Fq>,
+    base_point: &AffineVar<EdwardsParameters, FqVar>,
+    // cs: ConstraintSystemRef<Fq>,
 ) -> AffineVar<EdwardsParameters, FqVar> {
     let coeff_a1_var =
         FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_A1);
@@ -127,8 +134,8 @@ fn endomorphism_gadget(
     let coeff_c2_var =
         FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_C2);
 
-    let x_var = base_point.x;
-    let y_var = base_point.y;
+    let x_var = base_point.x.clone();
+    let y_var = base_point.y.clone();
     let z_var = y_var.clone();
 
     let fy_var: FqVar = coeff_a1_var
@@ -143,9 +150,10 @@ fn endomorphism_gadget(
     let x_var = x_var * fy_var * hy_var.clone();
     let y_var = gy_var * z_var.clone();
     let z_var = hy_var * z_var;
+    let z_var = z_var.inverse().unwrap();
 
-    ProjectiveVar::new(x_var, y_var, z_var)//, PhantomData::default())
-    .to_affine()
-    .unwrap();
-    todo!()
+    let x_var = x_var * z_var.clone();
+    let y_var = y_var * z_var;
+
+    AffineVar::new(x_var, y_var)
 }

@@ -1,6 +1,9 @@
 use crate::{Fq, Fr};
 use ark_ec::{
-    models::{ModelParameters, MontgomeryModelParameters, TEModelParameters, SWModelParameters},
+    models::{
+        ModelParameters, MontgomeryModelParameters, SWModelParameters,
+        TEModelParameters,
+    },
     twisted_edwards_extended::{GroupAffine, GroupProjective},
 };
 use ark_ff::{field_new, Field};
