@@ -17,7 +17,7 @@ AMD 5900x; ubuntu 20.04; arkworks 0.3.0; rust 1.52.1
 |:---|---| 
 | Jubjub |3325|
 | Bandersantch without GLV |  3325 |
-| Bandersantch with GLV| |
+| Bandersantch with GLV| 1468 |
 
 # Edward curves ops
 

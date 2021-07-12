@@ -16,7 +16,7 @@ There was also a Python reference implementation [here](https://github.com/asans
 - This repo is upstreamed to Arkworks [curve](https://github.com/arkworks-rs/curves/) crate.
 - Todos:
     - [x] GVL multiplication
-    - [ ] R1CS for GLV multiplication
+    - [x] R1CS for GLV multiplication
     - [ ] Documentation coverage
     - [ ] Test coverage
     - [x] Update benchmark data for Benchmark section.
@@ -40,4 +40,5 @@ Counting the number of constraints in group operations
 ```
 cargo run --example constraint_count_bandersnatch
 cargo run --example constraint_count_jubjub
+cargo run --example constraint_count_bandersnatch_glv
 ```
