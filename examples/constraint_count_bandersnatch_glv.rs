@@ -1,27 +1,21 @@
-use std::marker::PhantomData;
-
 use ark_ec::{AffineCurve, ProjectiveCurve};
-use ark_ff::{BigInteger, PrimeField, UniformRand};
+use ark_ff::{BigInteger, FpParameters, PrimeField, UniformRand};
 use ark_r1cs_std::{
     alloc::AllocVar,
     boolean::Boolean,
     eq::EqGadget,
     fields::{fp::FpVar, FieldVar},
-    groups::{
-        curves::{
-            short_weierstrass::ProjectiveVar, twisted_edwards::AffineVar,
-        },
-        CurveVar,
-    },
+    groups::{curves::twisted_edwards::AffineVar, CurveVar},
+    R1CSVar,
 };
 use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef,
     SynthesisError,
 };
 use bandersnatch::{
-    constraints::FqVar, EdwardsAffine, EdwardsParameters, Fq, Fr, GLVParameters,
+    constraints::FqVar, EdwardsAffine, EdwardsParameters, Fq, Fr, FrParameters,
+    GLVParameters,
 };
-// use ark_std::marker::PhantomData;
 
 fn main() {
     // in this example we are going to argue about the statement
@@ -34,7 +28,10 @@ fn main() {
     let mut rng = ark_std::test_rng();
 
     let point_g = EdwardsAffine::rand(&mut rng);
+    // let x = Fr::rand(&mut rng);
+    // let x = Fr::rand(&mut rng);
     let x = Fr::rand(&mut rng);
+    println!("{:?}", x.into_repr());
     let point_h = point_g.mul(x).into_affine();
     let circuit = GroupOpCircuit {
         base: point_g,
@@ -73,24 +70,30 @@ impl ConstraintSynthesizer<Fq> for GroupOpCircuit {
 
         let phi_var = endomorphism_gadget(&base_var);
 
+        // // sanity check
+        // let phi = <EdwardsParameters as GLVParameters>::endomorphism(&self.base);
+        // let phi_var_2 = AffineVar::new_witness(cs.clone(), ||Ok(phi)).unwrap();
+        // phi_var.enforce_equal(&phi_var_2).unwrap();
+
         #[cfg(debug_assertions)]
         println!("cs for endomorphism var: {}", cs.num_constraints() - _cs_no);
         let _cs_no = cs.num_constraints();
 
-        let mut scalar_bits_var = vec![];
-        for e in self.scalar.into_repr().to_bits_le() {
-            scalar_bits_var.push(Boolean::new_witness(cs.clone(), || Ok(e))?)
-        }
+        let (k1, k2) = scalar_decomposition_gadget(&self.scalar, cs.clone());
 
         #[cfg(debug_assertions)]
-        println!("cs for scalar var: {}", cs.num_constraints() - _cs_no);
+        println!(
+            "cs for scalar decomposition var: {}",
+            cs.num_constraints() - _cs_no
+        );
         let _cs_no = cs.num_constraints();
 
-        let res_var_recomputed =
-            base_var.scalar_mul_le(scalar_bits_var.iter())?;
+        let res_var_recomputed = multi_scalar_mul_gadget(
+            &base_var, &k1.0, &k1.1, &phi_var, &k2.0, &k2.1,
+        );
 
         #[cfg(debug_assertions)]
-        println!("cs for mul : {}", cs.num_constraints() - _cs_no);
+        println!("cs for msm: {}", cs.num_constraints() - _cs_no);
         let _cs_no = cs.num_constraints();
 
         let res_var = AffineVar::<EdwardsParameters, FpVar<Fq>>::new_witness(
@@ -113,9 +116,9 @@ impl ConstraintSynthesizer<Fq> for GroupOpCircuit {
     }
 }
 
+/// Mapping a point G to phi(G):= lambda G where phi is the endomorphism
 fn endomorphism_gadget(
     base_point: &AffineVar<EdwardsParameters, FqVar>,
-    // cs: ConstraintSystemRef<Fq>,
 ) -> AffineVar<EdwardsParameters, FqVar> {
     let coeff_a1_var =
         FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_A1);
@@ -156,4 +159,112 @@ fn endomorphism_gadget(
     let y_var = y_var * z_var;
 
     AffineVar::new(x_var, y_var)
+}
+
+/// Decompose a scalar s into k1, k2, s.t. s = k1 + lambda k2
+/// via a Babai's nearest plane algorithm.
+fn scalar_decomposition_gadget(
+    scalar: &Fr,
+    cs: ConstraintSystemRef<Fq>,
+) -> (
+    (Vec<Boolean<Fq>>, Boolean<Fq>),
+    (Vec<Boolean<Fq>>, Boolean<Fq>),
+) {
+    let (mut k1, mut k2) =
+        <EdwardsParameters as GLVParameters>::scalar_decomposition(scalar);
+
+    let r_over_2: Fr =
+        <FrParameters as FpParameters>::MODULUS_MINUS_ONE_DIV_TWO.into();
+
+    let k1_is_pos = if k1 > r_over_2 {
+        k1 = -k1;
+        false
+    } else {
+        true
+    };
+
+    let k2_is_pos = if k2 > r_over_2 {
+        k2 = -k2;
+        false
+    } else {
+        true
+    };
+
+    // println!("{:?} {:?}",  k1.into_repr(), k2.into_repr());
+    let k1 = k1.into_repr().to_bits_le();
+    let k2 = k2.into_repr().to_bits_le();
+
+    let len = std::cmp::max(get_bits(&k1), get_bits(&k2));
+    // println!("{} {:?} {:?}", len, k1, k2);
+    let mut k1_var = vec![];
+    let mut k2_var = vec![];
+    for i in 0..len as usize {
+        k1_var.push(Boolean::new_witness(cs.clone(), || Ok(k1[i])).unwrap());
+        k2_var.push(Boolean::new_witness(cs.clone(), || Ok(k2[i])).unwrap());
+    }
+    let k1_is_pos = Boolean::new_witness(cs.clone(), || Ok(k1_is_pos)).unwrap();
+    let k2_is_pos = Boolean::new_witness(cs.clone(), || Ok(k2_is_pos)).unwrap();
+
+    ((k1_var, k1_is_pos), (k2_var, k2_is_pos))
+}
+
+/// return the highest non-zero bits of a bit string.
+fn get_bits(a: &[bool]) -> u16 {
+    let mut res = 256;
+    for e in a.iter().rev() {
+        if !e {
+            res -= 1;
+        } else {
+            return res;
+        }
+    }
+    res
+}
+
+// Here we need to implement a customized MSM algorithm, since we know that
+// the high bits of Fr are restricted to be small, i.e. ~ 128 bits.
+// This MSM will save us some 128 doublings.
+pub fn multi_scalar_mul_gadget(
+    base: &AffineVar<EdwardsParameters, FqVar>,
+    scalar_1: &[Boolean<Fq>],
+    scalar_1_is_pos: &Boolean<Fq>,
+    endor_base: &AffineVar<EdwardsParameters, FqVar>,
+    scalar_2: &[Boolean<Fq>],
+    scalar_2_is_pos: &Boolean<Fq>,
+) -> AffineVar<EdwardsParameters, FqVar> {
+    let base = if scalar_1_is_pos.value().unwrap() {
+        base.clone()
+    } else {
+        base.clone().negate().unwrap()
+    };
+
+    let endor_base = if scalar_2_is_pos.value().unwrap() {
+        endor_base.clone()
+    } else {
+        endor_base.clone().negate().unwrap()
+    };
+
+    let sum = base.clone() + endor_base.clone();
+    let len = scalar_1.len();
+    let mut res = AffineVar::<EdwardsParameters, FqVar>::zero();
+    for i in 0..len {
+        res = res.double().unwrap();
+        if scalar_1[len - i - 1].value().unwrap()
+            && !scalar_2[len - i - 1].value().unwrap()
+        {
+            res += base.clone();
+        }
+        if !scalar_1[len - i - 1].value().unwrap()
+            && scalar_2[len - i - 1].value().unwrap()
+        {
+            res += endor_base.clone();
+        }
+        if scalar_1[len - i - 1].value().unwrap()
+            && scalar_2[len - i - 1].value().unwrap()
+        {
+            res += sum.clone();
+        }
+    }
+
+    res
 }
