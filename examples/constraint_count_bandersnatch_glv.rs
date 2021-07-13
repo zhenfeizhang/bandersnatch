@@ -29,7 +29,6 @@ fn main() {
 
     let point_g = EdwardsAffine::rand(&mut rng);
     let x = Fr::rand(&mut rng);
-    let x = Fr::rand(&mut rng);
     let point_h = point_g.mul(x).into_affine();
     let circuit = GroupOpCircuit {
         base: point_g,
