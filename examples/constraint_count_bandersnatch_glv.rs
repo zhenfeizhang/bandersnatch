@@ -6,7 +6,7 @@ use ark_r1cs_std::{
     eq::EqGadget,
     fields::{fp::FpVar, FieldVar},
     groups::{curves::twisted_edwards::AffineVar, CurveVar},
-    R1CSVar,
+    uint128, R1CSVar,
 };
 use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef,
@@ -28,10 +28,8 @@ fn main() {
     let mut rng = ark_std::test_rng();
 
     let point_g = EdwardsAffine::rand(&mut rng);
-    // let x = Fr::rand(&mut rng);
-    // let x = Fr::rand(&mut rng);
     let x = Fr::rand(&mut rng);
-    println!("{:?}", x.into_repr());
+    let x = Fr::rand(&mut rng);
     let point_h = point_g.mul(x).into_affine();
     let circuit = GroupOpCircuit {
         base: point_g,
@@ -161,7 +159,8 @@ fn endomorphism_gadget(
     AffineVar::new(x_var, y_var)
 }
 
-/// Decompose a scalar s into k1, k2, s.t. s = k1 + lambda k2
+/// Decompose a scalar s into k1, k2, s.t. s = k1 + lambda k2 mod r
+/// for lambda = 8913659658109529928382530854484400854125314752504019737736543920008458395397
 /// via a Babai's nearest plane algorithm.
 fn scalar_decomposition_gadget(
     scalar: &Fr,
@@ -172,6 +171,12 @@ fn scalar_decomposition_gadget(
 ) {
     let (mut k1, mut k2) =
         <EdwardsParameters as GLVParameters>::scalar_decomposition(scalar);
+
+    // todo: we need to prove that
+    //  k1 + lambda k2 = s mod r
+    // this seems to require a lot of constraints
+
+    // println!("{}, {}, {}", scalar, k1, k2);
 
     let r_over_2: Fr =
         <FrParameters as FpParameters>::MODULUS_MINUS_ONE_DIV_TWO.into();
@@ -224,7 +229,7 @@ fn get_bits(a: &[bool]) -> u16 {
 // Here we need to implement a customized MSM algorithm, since we know that
 // the high bits of Fr are restricted to be small, i.e. ~ 128 bits.
 // This MSM will save us some 128 doublings.
-pub fn multi_scalar_mul_gadget(
+fn multi_scalar_mul_gadget(
     base: &AffineVar<EdwardsParameters, FqVar>,
     scalar_1: &[Boolean<Fq>],
     scalar_1_is_pos: &Boolean<Fq>,
@@ -232,38 +237,33 @@ pub fn multi_scalar_mul_gadget(
     scalar_2: &[Boolean<Fq>],
     scalar_2_is_pos: &Boolean<Fq>,
 ) -> AffineVar<EdwardsParameters, FqVar> {
-    let base = if scalar_1_is_pos.value().unwrap() {
-        base.clone()
-    } else {
-        base.clone().negate().unwrap()
-    };
+    let zero = AffineVar::<EdwardsParameters, FqVar>::zero();
 
-    let endor_base = if scalar_2_is_pos.value().unwrap() {
-        endor_base.clone()
-    } else {
-        endor_base.clone().negate().unwrap()
-    };
+    let base = scalar_1_is_pos
+        .select(base, &base.clone().negate().unwrap())
+        .unwrap();
+
+    let endor_base = scalar_2_is_pos
+        .select(endor_base, &endor_base.clone().negate().unwrap())
+        .unwrap();
 
     let sum = base.clone() + endor_base.clone();
     let len = scalar_1.len();
     let mut res = AffineVar::<EdwardsParameters, FqVar>::zero();
     for i in 0..len {
         res = res.double().unwrap();
-        if scalar_1[len - i - 1].value().unwrap()
-            && !scalar_2[len - i - 1].value().unwrap()
-        {
-            res += base.clone();
-        }
-        if !scalar_1[len - i - 1].value().unwrap()
-            && scalar_2[len - i - 1].value().unwrap()
-        {
-            res += endor_base.clone();
-        }
-        if scalar_1[len - i - 1].value().unwrap()
-            && scalar_2[len - i - 1].value().unwrap()
-        {
-            res += sum.clone();
-        }
+
+        let add = scalar_1[len - i - 1]
+            .select(
+                // both bits are 1 => add the sum to self
+                // first bit is 1 and second bit is 0 => add the base to self
+                &scalar_2[len - i - 1].select(&sum, &base).unwrap(),
+                // first bit is 0 and second bit is 1 => add the endor_base to self
+                // bot bits are 0 => ignore
+                &scalar_2[len - i - 1].select(&endor_base, &zero).unwrap(),
+            )
+            .unwrap();
+        res += add;
     }
 
     res
