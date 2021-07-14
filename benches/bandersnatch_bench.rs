@@ -7,7 +7,7 @@ use ark_std::{
     rand::{RngCore, SeedableRng},
     UniformRand,
 };
-use bandersnatch::{EdwardsParameters, GLVParameters};
+use bandersnatch::{BandersnatchParameters, GLVParameters};
 use criterion::Criterion;
 use rand_chacha::ChaCha20Rng;
 
@@ -38,7 +38,7 @@ fn bench_decomposition(c: &mut Criterion) {
     let bench_str = format!("decomposition");
     bench_group.bench_function(bench_str, move |b| {
         let r = bandersnatch::Fr::rand(&mut rng);
-        b.iter(|| EdwardsParameters::scalar_decomposition(&r))
+        b.iter(|| BandersnatchParameters::scalar_decomposition(&r))
     });
     bench_group.finish();
 }
@@ -50,7 +50,7 @@ fn bench_endomorphism(c: &mut Criterion) {
 
     let bench_str = format!("endomorphism");
     bench_group.bench_function(bench_str, move |b| {
-        b.iter(|| EdwardsParameters::endomorphism(&base_point))
+        b.iter(|| BandersnatchParameters::endomorphism(&base_point))
     });
     bench_group.finish();
 }
@@ -60,12 +60,12 @@ fn bench_msm(c: &mut Criterion) {
 
     let mut rng = ChaCha20Rng::from_seed([0u8; 32]);
     let base_point = bandersnatch::EdwardsAffine::prime_subgroup_generator();
-    let psi_point = EdwardsParameters::endomorphism(&base_point);
+    let psi_point = BandersnatchParameters::endomorphism(&base_point);
 
     let bench_str = format!("multi-scalar-mul");
     bench_group.bench_function(bench_str, move |b| {
         let r = bandersnatch::Fr::rand(&mut rng);
-        let (r1, r2) = EdwardsParameters::scalar_decomposition(&r);
+        let (r1, r2) = BandersnatchParameters::scalar_decomposition(&r);
 
         b.iter(|| {
             bandersnatch::multi_scalar_mul(&base_point, &r1, &psi_point, &r2)
@@ -89,7 +89,7 @@ fn bench_bandersnatch(c: &mut Criterion) {
     bench_group.bench_function(bench_str, move |b| {
         let r = bandersnatch::Fr::rand(&mut rng);
         b.iter(|| {
-            let _ = EdwardsParameters::glv_mul(&base_point, &r);
+            let _ = BandersnatchParameters::glv_mul(&base_point, &r);
         })
     });
 
