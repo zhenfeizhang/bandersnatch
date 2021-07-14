@@ -1,21 +1,17 @@
-use ark_ec::{AffineCurve, ProjectiveCurve};
+use ark_ec::ProjectiveCurve;
 use ark_ff::{BigInteger, PrimeField, UniformRand};
-use ark_r1cs_std::groups::curves::short_weierstrass::ProjectiveVar;
 use ark_r1cs_std::{
     alloc::AllocVar,
     boolean::Boolean,
     eq::EqGadget,
     fields::fp::FpVar,
-    groups::{curves::twisted_edwards::AffineVar, CurveVar},
+    groups::{curves::short_weierstrass::ProjectiveVar, CurveVar},
 };
 use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef,
     SynthesisError,
 };
-// use bandersnatch::EdwardsProjective;
-use bandersnatch::{BandersnatchParameters, EdwardsAffine, Fq, Fr, SWProjective};
-// type EdwardsAffine = ark_ec::short_weierstrass_jacobian::GroupAffine<EdwardsParameters>;
-// type EdwardsProjective =  ark_ec::short_weierstrass_jacobian::GroupProjective<BandersnatchParameters>;
+use bandersnatch::{BandersnatchParameters, Fq, Fr, SWProjective};
 
 fn main() {
     // in this example we are going to argue about the statement

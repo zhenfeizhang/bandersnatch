@@ -12,8 +12,8 @@ use ark_relations::r1cs::{
     SynthesisError,
 };
 use bandersnatch::{
-    constraints::FqVar, EdwardsAffine, BandersnatchParameters, Fq, Fr, FrParameters,
-    GLVParameters,
+    constraints::FqVar, BandersnatchParameters, EdwardsAffine, Fq, Fr,
+    FrParameters, GLVParameters,
 };
 
 fn main() {
@@ -55,11 +55,12 @@ impl ConstraintSynthesizer<Fq> for GroupOpCircuit {
         cs: ConstraintSystemRef<Fq>,
     ) -> Result<(), SynthesisError> {
         let _cs_no = cs.num_constraints();
-        let base_var = AffineVar::<BandersnatchParameters, FpVar<Fq>>::new_witness(
-            cs.clone(),
-            || Ok(self.base),
-        )
-        .unwrap();
+        let base_var =
+            AffineVar::<BandersnatchParameters, FpVar<Fq>>::new_witness(
+                cs.clone(),
+                || Ok(self.base),
+            )
+            .unwrap();
         #[cfg(debug_assertions)]
         println!("cs for base var: {}", cs.num_constraints() - _cs_no);
         let _cs_no = cs.num_constraints();
@@ -92,11 +93,12 @@ impl ConstraintSynthesizer<Fq> for GroupOpCircuit {
         println!("cs for msm: {}", cs.num_constraints() - _cs_no);
         let _cs_no = cs.num_constraints();
 
-        let res_var = AffineVar::<BandersnatchParameters, FpVar<Fq>>::new_witness(
-            cs.clone(),
-            || Ok(self.res),
-        )
-        .unwrap();
+        let res_var =
+            AffineVar::<BandersnatchParameters, FpVar<Fq>>::new_witness(
+                cs.clone(),
+                || Ok(self.res),
+            )
+            .unwrap();
 
         #[cfg(debug_assertions)]
         println!("cs for result var : {}", cs.num_constraints() - _cs_no);
