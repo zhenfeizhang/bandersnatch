@@ -77,7 +77,7 @@ impl ConstraintSynthesizer<Fq> for GLVCircuit {
         self,
         cs: ConstraintSystemRef<Fq>,
     ) -> Result<(), SynthesisError> {
-        let base_var = AffineVar::<EdwardsParameters, FpVar<Fq>>::new_witness(
+        let base_var = AffineVar::<BandersnatchParameters, FpVar<Fq>>::new_witness(
             cs.clone(),
             || Ok(self.base),
         )
@@ -91,7 +91,7 @@ impl ConstraintSynthesizer<Fq> for GLVCircuit {
         let res_var_recomputed =
             base_var.scalar_mul_le(scalar_bits_var.iter())?;
 
-        let res_var = AffineVar::<EdwardsParameters, FpVar<Fq>>::new_witness(
+        let res_var = AffineVar::<BandersnatchParameters, FpVar<Fq>>::new_witness(
             cs.clone(),
             || Ok(self.res),
         )

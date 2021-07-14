@@ -2,6 +2,7 @@ use crate::{Fq, Fr};
 use ark_ec::{
     models::{ModelParameters, MontgomeryModelParameters, TEModelParameters},
     twisted_edwards_extended::{GroupAffine, GroupProjective},
+    short_weierstrass_jacobian::{GroupAffine as SWGroupAffine, GroupProjective as SWGroupProjective},
     SWModelParameters,
 };
 use ark_ff::{field_new, Field};
@@ -13,8 +14,10 @@ pub use glv::{multi_scalar_mul, GLVParameters};
 #[cfg(test)]
 mod tests;
 
-pub type EdwardsAffine = GroupAffine<EdwardsParameters>;
-pub type EdwardsProjective = GroupProjective<EdwardsParameters>;
+pub type EdwardsAffine = GroupAffine<BandersnatchParameters>;
+pub type EdwardsProjective = GroupProjective<BandersnatchParameters>;
+pub type SWAffine =  SWGroupAffine<BandersnatchParameters>;
+pub type SWProjective = SWGroupProjective<BandersnatchParameters>;
 
 /// `banersnatch` is a twisted Edwards curve. These curves have equations of the
 /// form: ax² + y² = 1 - dx²y².
@@ -39,14 +42,14 @@ pub type EdwardsProjective = GroupProjective<EdwardsParameters>;
 /// These parameters and the sage script obtained from:
 /// <https://github.com/asanso/Bandersnatch/>
 #[derive(Clone, Default, PartialEq, Eq)]
-pub struct EdwardsParameters;
+pub struct BandersnatchParameters;
 
-impl ModelParameters for EdwardsParameters {
+impl ModelParameters for BandersnatchParameters {
     type BaseField = Fq;
     type ScalarField = Fr;
 }
 
-impl TEModelParameters for EdwardsParameters {
+impl TEModelParameters for BandersnatchParameters {
     /// COEFF_A = -5
     const COEFF_A: Fq = field_new!(Fq, "-5");
 
@@ -71,7 +74,7 @@ impl TEModelParameters for EdwardsParameters {
     const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField) =
         (TE_GENERATOR_X, TE_GENERATOR_Y);
 
-    type MontgomeryModelParameters = EdwardsParameters;
+    type MontgomeryModelParameters = BandersnatchParameters;
 
     /// Multiplication by `a` is multiply by `-5`.
     #[inline(always)]
@@ -81,7 +84,7 @@ impl TEModelParameters for EdwardsParameters {
     }
 }
 
-impl MontgomeryModelParameters for EdwardsParameters {
+impl MontgomeryModelParameters for BandersnatchParameters {
     /// COEFF_A = 29978822694968839326280996386011761570173833766074948509196803838190355340952
     const COEFF_A: Fq = field_new!(
         Fq,
@@ -94,7 +97,7 @@ impl MontgomeryModelParameters for EdwardsParameters {
         "25465760566081946422412445027709227188579564747101592991722834452325077642517"
     );
 
-    type TEModelParameters = EdwardsParameters;
+    type TEModelParameters = BandersnatchParameters;
 }
 
 // using the generator from bench.py (in affine form, on TE curve)
@@ -125,7 +128,7 @@ const SW_GENERATOR_Y: Fq = field_new!(
     "3865016222540273726364778390358771198398896682531094491691896377074200900624"
 );
 
-impl SWModelParameters for EdwardsParameters {
+impl SWModelParameters for BandersnatchParameters {
     /// COEFF_A = 10773120815616481058602537765553212789256758185246796157495669123169359657269
     const COEFF_A: Self::BaseField = field_new!(
         Fq,

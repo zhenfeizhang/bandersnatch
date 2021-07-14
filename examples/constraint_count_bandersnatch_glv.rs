@@ -12,7 +12,7 @@ use ark_relations::r1cs::{
     SynthesisError,
 };
 use bandersnatch::{
-    constraints::FqVar, EdwardsAffine, EdwardsParameters, Fq, Fr, FrParameters,
+    constraints::FqVar, EdwardsAffine, BandersnatchParameters, Fq, Fr, FrParameters,
     GLVParameters,
 };
 
@@ -55,7 +55,7 @@ impl ConstraintSynthesizer<Fq> for GroupOpCircuit {
         cs: ConstraintSystemRef<Fq>,
     ) -> Result<(), SynthesisError> {
         let _cs_no = cs.num_constraints();
-        let base_var = AffineVar::<EdwardsParameters, FpVar<Fq>>::new_witness(
+        let base_var = AffineVar::<BandersnatchParameters, FpVar<Fq>>::new_witness(
             cs.clone(),
             || Ok(self.base),
         )
@@ -92,7 +92,7 @@ impl ConstraintSynthesizer<Fq> for GroupOpCircuit {
         println!("cs for msm: {}", cs.num_constraints() - _cs_no);
         let _cs_no = cs.num_constraints();
 
-        let res_var = AffineVar::<EdwardsParameters, FpVar<Fq>>::new_witness(
+        let res_var = AffineVar::<BandersnatchParameters, FpVar<Fq>>::new_witness(
             cs.clone(),
             || Ok(self.res),
         )
@@ -114,24 +114,24 @@ impl ConstraintSynthesizer<Fq> for GroupOpCircuit {
 
 /// Mapping a point G to phi(G):= lambda G where phi is the endomorphism
 fn endomorphism_gadget(
-    base_point: &AffineVar<EdwardsParameters, FqVar>,
-) -> AffineVar<EdwardsParameters, FqVar> {
+    base_point: &AffineVar<BandersnatchParameters, FqVar>,
+) -> AffineVar<BandersnatchParameters, FqVar> {
     let coeff_a1_var =
-        FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_A1);
+        FqVar::constant(<BandersnatchParameters as GLVParameters>::COEFF_A1);
     let coeff_a2_var =
-        FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_A2);
+        FqVar::constant(<BandersnatchParameters as GLVParameters>::COEFF_A2);
     let coeff_a3_var =
-        FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_A3);
+        FqVar::constant(<BandersnatchParameters as GLVParameters>::COEFF_A3);
     let coeff_b1_var =
-        FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_B1);
+        FqVar::constant(<BandersnatchParameters as GLVParameters>::COEFF_B1);
     let coeff_b2_var =
-        FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_B2);
+        FqVar::constant(<BandersnatchParameters as GLVParameters>::COEFF_B2);
     let coeff_b3_var =
-        FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_B3);
+        FqVar::constant(<BandersnatchParameters as GLVParameters>::COEFF_B3);
     let coeff_c1_var =
-        FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_C1);
+        FqVar::constant(<BandersnatchParameters as GLVParameters>::COEFF_C1);
     let coeff_c2_var =
-        FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_C2);
+        FqVar::constant(<BandersnatchParameters as GLVParameters>::COEFF_C2);
 
     let x_var = base_point.x.clone();
     let y_var = base_point.y.clone();
@@ -168,7 +168,7 @@ fn scalar_decomposition_gadget(
     (Vec<Boolean<Fq>>, Boolean<Fq>),
 ) {
     let (mut k1, mut k2) =
-        <EdwardsParameters as GLVParameters>::scalar_decomposition(scalar);
+        <BandersnatchParameters as GLVParameters>::scalar_decomposition(scalar);
 
     // todo: we need to prove that
     //  k1 + lambda k2 = s mod r
@@ -228,14 +228,14 @@ fn get_bits(a: &[bool]) -> u16 {
 // the high bits of Fr are restricted to be small, i.e. ~ 128 bits.
 // This MSM will save us some 128 doublings.
 fn multi_scalar_mul_gadget(
-    base: &AffineVar<EdwardsParameters, FqVar>,
+    base: &AffineVar<BandersnatchParameters, FqVar>,
     scalar_1: &[Boolean<Fq>],
     scalar_1_is_pos: &Boolean<Fq>,
-    endor_base: &AffineVar<EdwardsParameters, FqVar>,
+    endor_base: &AffineVar<BandersnatchParameters, FqVar>,
     scalar_2: &[Boolean<Fq>],
     scalar_2_is_pos: &Boolean<Fq>,
-) -> AffineVar<EdwardsParameters, FqVar> {
-    let zero = AffineVar::<EdwardsParameters, FqVar>::zero();
+) -> AffineVar<BandersnatchParameters, FqVar> {
+    let zero = AffineVar::<BandersnatchParameters, FqVar>::zero();
 
     let base = scalar_1_is_pos
         .select(base, &base.clone().negate().unwrap())
@@ -247,7 +247,7 @@ fn multi_scalar_mul_gadget(
 
     let sum = base.clone() + endor_base.clone();
     let len = scalar_1.len();
-    let mut res = AffineVar::<EdwardsParameters, FqVar>::zero();
+    let mut res = AffineVar::<BandersnatchParameters, FqVar>::zero();
     for i in 0..len {
         res = res.double().unwrap();
 

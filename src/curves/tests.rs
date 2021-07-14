@@ -8,9 +8,9 @@ use ark_std::{rand::Rng, str::FromStr, test_rng};
 fn test_projective_curve() {
     curve_tests::<EdwardsProjective>();
 
-    edwards_tests::<EdwardsParameters>();
-    montgomery_conversion_test::<EdwardsParameters>();
-    sw_tests::<EdwardsParameters>();
+    edwards_tests::<BandersnatchParameters>();
+    montgomery_conversion_test::<BandersnatchParameters>();
+    sw_tests::<BandersnatchParameters>();
 }
 
 #[test]
@@ -101,7 +101,7 @@ fn test_bytes() {
 
 #[test]
 fn test_montgomery_conversion() {
-    montgomery_conversion_test::<EdwardsParameters>();
+    montgomery_conversion_test::<BandersnatchParameters>();
 }
 
 #[test]
@@ -113,7 +113,7 @@ fn test_psi() {
     )
     .unwrap();
 
-    let t = EdwardsParameters::endomorphism(&base_point);
+    let t = BandersnatchParameters::endomorphism(&base_point);
     assert_eq!(t, psi_point);
 }
 
@@ -125,7 +125,7 @@ fn test_decomp() {
     );
     let k1: Fr = field_new!(Fr, "30417741863887432744214758610616508258");
     let k2: Fr = field_new!(Fr, "-6406990765953933188067911864924578940");
-    assert_eq!(EdwardsParameters::scalar_decomposition(&scalar), (k1, k2))
+    assert_eq!(BandersnatchParameters::scalar_decomposition(&scalar), (k1, k2))
 }
 
 #[test]
@@ -136,7 +136,7 @@ fn test_msm() {
          33370049900732270411777328808452912493896532385897059012214433666611661340894)",
     )
     .unwrap();
-    let t = EdwardsParameters::endomorphism(&base_point);
+    let t = BandersnatchParameters::endomorphism(&base_point);
     assert_eq!(t, psi_point);
 
     let scalar: Fr = field_new!(
@@ -145,7 +145,7 @@ fn test_msm() {
     );
     let k1: Fr = field_new!(Fr, "30417741863887432744214758610616508258");
     let k2: Fr = field_new!(Fr, "-6406990765953933188067911864924578940");
-    assert_eq!(EdwardsParameters::scalar_decomposition(&scalar), (k1, k2));
+    assert_eq!(BandersnatchParameters::scalar_decomposition(&scalar), (k1, k2));
 
     let res = EdwardsAffine::from_str(
         "(6018810645516749504657411940673266094850700554607419759628157493373766067122, \
@@ -170,7 +170,7 @@ fn test_gen_mul() {
     );
 
     let b = a.mul(r);
-    let c = EdwardsParameters::glv_mul(&a, &r);
+    let c = BandersnatchParameters::glv_mul(&a, &r);
 
     assert_eq!(b.into_affine(), c.into_affine())
 }
@@ -185,7 +185,7 @@ fn test_rnd_mul() {
         let r: Fr = rng.gen();
 
         let b = a.mul(r);
-        let c = EdwardsParameters::glv_mul(&a, &r);
+        let c = BandersnatchParameters::glv_mul(&a, &r);
 
         assert_eq!(b.into_affine(), c.into_affine())
     }
