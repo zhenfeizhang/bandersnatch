@@ -6,7 +6,6 @@ use ark_r1cs_std::{
     eq::EqGadget,
     fields::{fp::FpVar, FieldVar},
     groups::{curves::twisted_edwards::AffineVar, CurveVar},
-    uint128, R1CSVar,
 };
 use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef,

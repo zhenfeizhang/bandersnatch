@@ -2,6 +2,7 @@ use crate::{Fq, Fr};
 use ark_ec::{
     models::{ModelParameters, MontgomeryModelParameters, TEModelParameters},
     twisted_edwards_extended::{GroupAffine, GroupProjective},
+    SWModelParameters,
 };
 use ark_ff::{field_new, Field};
 
@@ -68,7 +69,7 @@ impl TEModelParameters for EdwardsParameters {
 
     /// AFFINE_GENERATOR_COEFFS = (GENERATOR_X, GENERATOR_Y)
     const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField) =
-        (GENERATOR_X, GENERATOR_Y);
+        (TE_GENERATOR_X, TE_GENERATOR_Y);
 
     type MontgomeryModelParameters = EdwardsParameters;
 
@@ -96,44 +97,58 @@ impl MontgomeryModelParameters for EdwardsParameters {
     type TEModelParameters = EdwardsParameters;
 }
 
-// using the generator from bench.py (in affine form)
+// using the generator from bench.py (in affine form, on TE curve)
 // P = BandersnatchPoint(
 //      13738737789055671334382939318077718462576533426798874551591468520593954805549,
 //      11575885077368931610486103676191793534029821920164915325066801506752632626968,
 //      14458123306641001284399433086015669988340559992755622870694102351476334505845,
 //      C)
 
-const GENERATOR_X: Fq = field_new!(
+/// x coordinate for TE curve generator
+const TE_GENERATOR_X: Fq = field_new!(
     Fq,
     "29627151942733444043031429156003786749302466371339015363120350521834195802525"
 );
-
-const GENERATOR_Y: Fq = field_new!(
+/// y coordinate for TE curve generator
+const TE_GENERATOR_Y: Fq = field_new!(
     Fq,
     "27488387519748396681411951718153463804682561779047093991696427532072116857978"
 );
+/// x coordinate for SW curve generator
+const SW_GENERATOR_X: Fq = field_new!(
+    Fq,
+    "36825263486403546626300966120264772870284111435429821597925698003262359905220"
+);
+/// y coordinate for SW curve generator
+const SW_GENERATOR_Y: Fq = field_new!(
+    Fq,
+    "3865016222540273726364778390358771198398896682531094491691896377074200900624"
+);
 
-// impl SWModelParameters for EdwardsParameters {
-//     const COEFF_A: Self::BaseField;
-//     const COEFF_B: Self::BaseField;
-//     const COFACTOR: &'static [u64];
-//     const COFACTOR_INV: Self::ScalarField;
-//     const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField);
+impl SWModelParameters for EdwardsParameters {
+    /// COEFF_A = 10773120815616481058602537765553212789256758185246796157495669123169359657269
+    const COEFF_A: Self::BaseField = field_new!(
+        Fq,
+        "10773120815616481058602537765553212789256758185246796157495669123169359657269"
+    );
 
-//     #[inline(always)]
-//     fn mul_by_a(elem: &Self::BaseField) -> Self::BaseField {
-//         let mut copy = *elem;
-//         copy *= &Self::COEFF_A;
-//         copy
-//     }
+    /// COEFF_B = 29569587568322301171008055308580903175558631321415017492731745847794083609535
+    const COEFF_B: Self::BaseField = field_new!(
+        Fq,
+        "29569587568322301171008055308580903175558631321415017492731745847794083609535"
+    );
 
-//     #[inline(always)]
-//     fn add_b(elem: &Self::BaseField) -> Self::BaseField {
-//         if !Self::COEFF_B.is_zero() {
-//             let mut copy = *elem;
-//             copy += &Self::COEFF_B;
-//             return copy;
-//         }
-//         *elem
-//     }
-// }
+    /// COFACTOR = 4
+    const COFACTOR: &'static [u64] = &[4];
+
+    /// COFACTOR^(-1) mod r =
+    /// 9831726595336160714896451345284868594481866920080427688839802480047265754601
+    const COFACTOR_INV: Fr = field_new!(
+        Fr,
+        "9831726595336160714896451345284868594481866920080427688839802480047265754601"
+    );
+
+    /// generators
+    const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField) =
+        (SW_GENERATOR_X, SW_GENERATOR_Y);
+}

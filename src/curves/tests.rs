@@ -9,6 +9,8 @@ fn test_projective_curve() {
     curve_tests::<EdwardsProjective>();
 
     edwards_tests::<EdwardsParameters>();
+    montgomery_conversion_test::<EdwardsParameters>();
+    sw_tests::<EdwardsParameters>();
 }
 
 #[test]
