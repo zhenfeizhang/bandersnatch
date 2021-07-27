@@ -17,11 +17,11 @@ AMD 5900x; ubuntu 20.04; arkworks 0.3.0; rust 1.52.1
 |:---|---| 
 | Jubjub |3325|
 | Bandersantch without GLV |  3325 |
-| Bandersantch with GLV| |
+| Bandersantch with GLV| 1468 |
 
 # Edward curves ops
 
-|   | bandersnatch (without GLV)| bandersnatch (without GLV)| Jubjub | ed_on_bls12_377|
+|   | bandersnatch (with GLV)| bandersnatch (without GLV)| Jubjub | ed_on_bls12_377|
 |:---|---| --- | ---|---|
 | fix base mul | 44 us | 80 us | 75 us  | 73 us |
 
