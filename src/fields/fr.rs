@@ -1,3 +1,5 @@
+//! Scalar field of bandersantch.
+
 use ark_ff::{
     biginteger::BigInteger256 as BigInteger,
     fields::{FftParameters, Fp256, Fp256Parameters, FpParameters},

@@ -2,7 +2,7 @@ bandersnatch-rust
 ------
 
 
-This is a reference implementation of [Bendersnatch curve](https://ethresear.ch/t/introducing-bandersnatch-a-fast-elliptic-curve-built-over-the-bls12-381-scalar-field/9957) using [Arkwork](https://github.com/arkworks-rs/curves)'s framework in Rust.
+This is a reference implementation of [Bandersnatch curve](https://ethresear.ch/t/introducing-bandersnatch-a-fast-elliptic-curve-built-over-the-bls12-381-scalar-field/9957) using [Arkwork](https://github.com/arkworks-rs/curves)'s framework in Rust.
 The spec of the curve is available 
 [here](https://github.com/asanso/Bandersnatch/blob/main/README.md).
 There was also a Python reference implementation [here](https://github.com/asanso/Bandersnatch/).
@@ -18,7 +18,7 @@ There was also a Python reference implementation [here](https://github.com/asans
     - [x] GVL multiplication
     - [x] R1CS for GLV multiplication
     - [ ] Documentation coverage
-    - [ ] Test coverage
+    - [x] Test coverage
     - [x] Update benchmark data for Benchmark section.
 
 # Howto
