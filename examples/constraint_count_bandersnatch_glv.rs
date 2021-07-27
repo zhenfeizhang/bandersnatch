@@ -78,7 +78,7 @@ impl ConstraintSynthesizer<Fq> for GroupOpCircuit {
 
         let (k1, k2) = scalar_decomposition_gadget(&self.scalar, cs.clone());
 
-        println!("The data is incorrect. The scalar decomposition var counts will be much larger")
+        println!("The data is incorrect. The scalar decomposition var counts will be much larger");
         #[cfg(debug_assertions)]
         println!(
             "cs for scalar decomposition var: {}",
