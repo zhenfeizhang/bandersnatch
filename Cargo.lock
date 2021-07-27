@@ -46,6 +46,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ark-bls12-381"
+version = "0.3.0"
+source = "git+https://github.com/zhenfeizhang/curves/?branch=new_branch#c57643006bd1662b911e041521a26cab6a4d24a9"
+dependencies = [
+ "ark-ec",
+ "ark-ff",
+ "ark-std",
+]
+
+[[package]]
 name = "ark-crypto-primitives"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -108,10 +118,9 @@ dependencies = [
 [[package]]
 name = "ark-ed-on-bls12-381"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43b7ada17db3854f5994e74e60b18e10e818594935ee7e1d329800c117b32970"
+source = "git+https://github.com/zhenfeizhang/curves/?branch=new_branch#c57643006bd1662b911e041521a26cab6a4d24a9"
 dependencies = [
- "ark-bls12-381",
+ "ark-bls12-381 0.3.0 (git+https://github.com/zhenfeizhang/curves/?branch=new_branch)",
  "ark-ec",
  "ark-ff",
  "ark-std",
@@ -299,7 +308,7 @@ version = "0.1.0"
 dependencies = [
  "ark-algebra-test-templates",
  "ark-bls12-377",
- "ark-bls12-381",
+ "ark-bls12-381 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ark-curve-constraint-tests",
  "ark-ec",
  "ark-ed-on-bls12-377",
