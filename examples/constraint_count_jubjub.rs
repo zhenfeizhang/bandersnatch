@@ -1,5 +1,5 @@
 use ark_ec::{AffineCurve, ProjectiveCurve};
-use ark_ed_on_bls12_381::{EdwardsAffine, JubjubParameters, Fq, Fr};
+use ark_ed_on_bls12_381::{EdwardsAffine, Fq, Fr, JubjubParameters};
 use ark_ff::{BigInteger, PrimeField, UniformRand};
 use ark_r1cs_std::{
     alloc::AllocVar,
