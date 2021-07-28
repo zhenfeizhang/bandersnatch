@@ -1,13 +1,19 @@
 #[macro_use]
 extern crate criterion;
 
-use ark_ec::{AffineCurve, PairingEngine, ProjectiveCurve};
+use ark_ec::{
+    msm::VariableBaseMSM, AffineCurve, PairingEngine, ProjectiveCurve,
+};
+use ark_ff::{fields::PrimeField, BigInteger256};
 use ark_std::{
     ops::MulAssign,
     rand::{RngCore, SeedableRng},
     UniformRand,
 };
-use bandersnatch::{BandersnatchParameters, GLVParameters};
+use bandersnatch::{
+    BandersnatchParameters, EdwardsAffine as BandersnatchAffine, Fr,
+    GLVParameters,
+};
 use criterion::Criterion;
 use rand_chacha::ChaCha20Rng;
 
@@ -15,6 +21,7 @@ criterion_group!(
     bandersnatch_bench,
     bench_endomorphism,
     bench_decomposition,
+    bench_2sm,
     bench_msm,
     bench_bandersnatch,
     bench_jubjub,
@@ -55,22 +62,61 @@ fn bench_endomorphism(c: &mut Criterion) {
     bench_group.finish();
 }
 
-fn bench_msm(c: &mut Criterion) {
+fn bench_2sm(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group("micro benchmark");
 
     let mut rng = ChaCha20Rng::from_seed([0u8; 32]);
     let base_point = bandersnatch::EdwardsAffine::prime_subgroup_generator();
     let psi_point = BandersnatchParameters::endomorphism(&base_point);
 
-    let bench_str = format!("multi-scalar-mul");
+    let bench_str = format!("two-scalar-mul");
     bench_group.bench_function(bench_str, move |b| {
         let r = bandersnatch::Fr::rand(&mut rng);
         let (r1, r2) = BandersnatchParameters::scalar_decomposition(&r);
 
         b.iter(|| {
-            bandersnatch::multi_scalar_mul(&base_point, &r1, &psi_point, &r2)
+            bandersnatch::two_scalar_mul(&base_point, &r1, &psi_point, &r2)
         })
     });
+    bench_group.finish();
+}
+
+fn bench_msm(c: &mut Criterion) {
+    let mut bench_group = c.benchmark_group("micro benchmark");
+
+    let mut rng = ChaCha20Rng::from_seed([0u8; 32]);
+
+    for d in [
+        2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384,
+    ]
+    .iter()
+    {
+        let base: Vec<BandersnatchAffine> = (0..*d)
+            .map(|_| BandersnatchAffine::rand(&mut rng))
+            .collect();
+        let base_clone = base.clone();
+
+        let scalar: Vec<Fr> = (0..*d).map(|_| Fr::rand(&mut rng)).collect();
+        let scalar_repr: Vec<BigInteger256> =
+            scalar.iter().map(|x| (*x).into_repr()).collect();
+
+        let bench_str = format!("ark-multi-scalar-mul for dim {}", d);
+        bench_group.bench_function(bench_str, move |b| {
+            b.iter(|| {
+                let _ = VariableBaseMSM::multi_scalar_mul(
+                    &base_clone,
+                    &scalar_repr,
+                );
+            });
+        });
+
+        let bench_str = format!("glv-multi-scalar-mul for dim {}", d);
+        bench_group.bench_function(bench_str, move |b| {
+            b.iter(|| {
+                let _ = bandersnatch::multi_scalar_mul_with_glv(&base, &scalar);
+            });
+        });
+    }
     bench_group.finish();
 }
 

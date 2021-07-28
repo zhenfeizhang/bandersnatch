@@ -1,6 +1,8 @@
 use crate::*;
 use ark_algebra_test_templates::{curves::*, groups::*};
-use ark_ec::{AffineCurve, ProjectiveCurve};
+use ark_ec::{
+    msm::VariableBaseMSM as ArkVariableBaseMSM, AffineCurve, ProjectiveCurve,
+};
 use ark_ff::{bytes::FromBytes, field_new, Zero};
 use ark_std::{rand::Rng, str::FromStr, test_rng};
 
@@ -152,7 +154,7 @@ fn test_decomp() {
 }
 
 #[test]
-fn test_msm() {
+fn test_2sm() {
     let base_point = EdwardsAffine::prime_subgroup_generator();
     let psi_point = EdwardsAffine::from_str(
         "(3995099504672814451457646880854530097687530507181962222512229786736061793535, \
@@ -180,7 +182,7 @@ fn test_msm() {
     .unwrap();
 
     let tmp = base_point.mul(scalar);
-    let res2 = super::glv::multi_scalar_mul(&base_point, &k1, &psi_point, &k2)
+    let res2 = super::glv::two_scalar_mul(&base_point, &k1, &psi_point, &k2)
         .into_affine();
 
     assert_eq!(tmp.into_affine(), res);
@@ -215,4 +217,30 @@ fn test_rnd_mul() {
 
         assert_eq!(b.into_affine(), c.into_affine())
     }
+}
+
+#[test]
+fn test_msm() {
+    use ark_ff::{fields::PrimeField, BigInteger256};
+    use ark_std::{test_rng, vec::Vec, UniformRand};
+    let mut rng = test_rng();
+
+    for d in [
+        2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384,
+    ]
+    .iter()
+    {
+        let base: Vec<EdwardsAffine> =
+            (0..*d).map(|_| EdwardsAffine::rand(&mut rng)).collect();
+
+        let scalar: Vec<Fr> = (0..*d).map(|_| Fr::rand(&mut rng)).collect();
+        let scalar_repr: Vec<BigInteger256> =
+            scalar.iter().map(|x| (*x).into_repr()).collect();
+
+        let res1 = ArkVariableBaseMSM::multi_scalar_mul(&base, &scalar_repr);
+        let res2 = multi_scalar_mul_with_glv(&base, &scalar);
+
+        assert_eq!(res1, res2)
+    }
+    // assert!(false)
 }

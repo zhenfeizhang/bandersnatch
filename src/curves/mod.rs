@@ -11,7 +11,9 @@ use ark_ff::{field_new, Field};
 
 mod glv;
 
-pub use glv::{multi_scalar_mul, GLVParameters};
+pub use glv::{
+    multi_scalar_mul, multi_scalar_mul_with_glv, two_scalar_mul, GLVParameters,
+};
 
 #[cfg(test)]
 mod tests;

@@ -1,7 +1,12 @@
-use crate::{BandersnatchParameters, Fq, Fr, FrParameters};
+use crate::{
+    BandersnatchParameters, EdwardsAffine, EdwardsProjective, Fq, Fr,
+    FrParameters,
+};
 use ark_ec::{AffineCurve, ModelParameters, ProjectiveCurve};
-use ark_ff::{field_new, BigInteger, BigInteger256, FpParameters, One};
-use ark_std::{cmp::max, Zero};
+use ark_ff::{
+    field_new, prelude::*, BigInteger, BigInteger256, FpParameters, One,
+};
+use ark_std::{cmp::max, vec, vec::Vec, Zero};
 use num_bigint::BigUint;
 
 /// The GLV parameters that are useful to compute the endomorphism
@@ -168,14 +173,14 @@ impl GLVParameters for BandersnatchParameters {
     ) -> Self::CurveProjective {
         let psi_base = Self::endomorphism(&base);
         let (k1, k2) = Self::scalar_decomposition(scalar);
-        multi_scalar_mul(&base, &k1, &psi_base, &k2)
+        two_scalar_mul(&base, &k1, &psi_base, &k2)
     }
 }
 
 // Here we need to implement a customized MSM algorithm, since we know that
 // the high bits of Fr are restricted to be small, i.e. ~ 128 bits.
 // This MSM will save us some 128 doublings.
-pub fn multi_scalar_mul(
+pub fn two_scalar_mul(
     base: &crate::EdwardsAffine,
     scalar_1: &Fr,
     endor_base: &crate::EdwardsAffine,
@@ -235,4 +240,157 @@ fn get_bits(a: &[bool]) -> u16 {
         }
     }
     res
+}
+
+/// The result of this function is only approximately `ln(a)`
+/// [`Explanation of usage`]
+///
+/// [`Explanation of usage`]: https://github.com/scipr-lab/zexe/issues/79#issue-556220473
+fn ln_without_floats(a: usize) -> usize {
+    // log2(a) * ln(2)
+    (ark_std::log2(a) * 69 / 100) as usize
+}
+
+pub fn multi_scalar_mul_with_glv(
+    bases: &[EdwardsAffine],
+    scalars: &[Fr],
+) -> EdwardsProjective {
+    let mut bases_ext = Vec::new();
+    let mut scalars_ext = Vec::new();
+
+    let r_over_2: Fr =
+        <FrParameters as FpParameters>::MODULUS_MINUS_ONE_DIV_TWO.into();
+
+    for i in 0..bases.len() {
+        let phi =
+            <BandersnatchParameters as GLVParameters>::endomorphism(&bases[i]);
+        let (k1, k2) =
+            <BandersnatchParameters as GLVParameters>::scalar_decomposition(
+                &scalars[i],
+            );
+        if k1 > r_over_2 {
+            bases_ext.push(-bases[i]);
+            scalars_ext.push((-k1).into_repr());
+        } else {
+            bases_ext.push(bases[i]);
+            scalars_ext.push(k1.into_repr());
+        }
+
+        if k2 > r_over_2 {
+            bases_ext.push(-phi);
+            scalars_ext.push((-k2).into_repr());
+        } else {
+            bases_ext.push(phi);
+            scalars_ext.push(k2.into_repr());
+        }
+    }
+    let mut len = 0;
+    for e in scalars_ext.iter() {
+        let l = get_bits(&e.to_bits_le());
+        // println!("{}", l);
+        if l > len {
+            len = l
+        }
+    }
+    // println!("{} {}", bases.len(), len);
+    multi_scalar_mul(&bases_ext, &scalars_ext, len as u32)
+}
+
+pub fn multi_scalar_mul<G: AffineCurve>(
+    bases: &[G],
+    scalars: &[<G::ScalarField as PrimeField>::BigInt],
+    len: u32,
+) -> G::Projective {
+    let size = ark_std::cmp::min(bases.len(), scalars.len());
+    let scalars = &scalars[..size];
+    let bases = &bases[..size];
+    let scalars_and_bases_iter =
+        scalars.iter().zip(bases).filter(|(s, _)| !s.is_zero());
+
+    let c = if size < 32 {
+        3
+    } else {
+        ln_without_floats(size) + 2
+    };
+
+    let num_bits = len;
+    // <G::ScalarField as PrimeField>::Params::MODULUS_BITS as usize;
+    let fr_one = G::ScalarField::one().into_repr();
+
+    let zero = G::Projective::zero();
+    let window_starts: Vec<_> = (0..num_bits).step_by(c).collect();
+
+    // Each window is of size `c`.
+    // We divide up the bits 0..num_bits into windows of size `c`, and
+    // in parallel process each such window.
+    let window_sums: Vec<_> = ark_std::cfg_into_iter!(window_starts)
+        .map(|w_start| {
+            let mut res = zero;
+            // We don't need the "zero" bucket, so we only have 2^c - 1 buckets.
+            let mut buckets = vec![zero; (1 << c) - 1];
+            // This clone is cheap, because the iterator contains just a
+            // pointer and an index into the original vectors.
+            scalars_and_bases_iter.clone().for_each(|(&scalar, base)| {
+                if scalar == fr_one {
+                    // We only process unit scalars once in the first window.
+                    if w_start == 0 {
+                        res.add_assign_mixed(base);
+                    }
+                } else {
+                    let mut scalar = scalar;
+
+                    // We right-shift by w_start, thus getting rid of the
+                    // lower bits.
+                    scalar.divn(w_start as u32);
+
+                    // We mod the remaining bits by 2^{window size}, thus taking `c` bits.
+                    let scalar = scalar.as_ref()[0] % (1 << c);
+
+                    // If the scalar is non-zero, we update the corresponding
+                    // bucket.
+                    // (Recall that `buckets` doesn't have a zero bucket.)
+                    if scalar != 0 {
+                        buckets[(scalar - 1) as usize].add_assign_mixed(base);
+                    }
+                }
+            });
+
+            // Compute sum_{i in 0..num_buckets} (sum_{j in i..num_buckets} bucket[j])
+            // This is computed below for b buckets, using 2b curve additions.
+            //
+            // We could first normalize `buckets` and then use mixed-addition
+            // here, but that's slower for the kinds of groups we care about
+            // (Short Weierstrass curves and Twisted Edwards curves).
+            // In the case of Short Weierstrass curves,
+            // mixed addition saves ~4 field multiplications per addition.
+            // However normalization (with the inversion batched) takes ~6
+            // field multiplications per element,
+            // hence batch normalization is a slowdown.
+
+            // `running_sum` = sum_{j in i..num_buckets} bucket[j],
+            // where we iterate backward from i = num_buckets to 0.
+            let mut running_sum = G::Projective::zero();
+            buckets.into_iter().rev().for_each(|b| {
+                running_sum += &b;
+                res += &running_sum;
+            });
+            res
+        })
+        .collect();
+
+    // We store the sum for the lowest window.
+    let lowest = *window_sums.first().unwrap();
+
+    // We're traversing windows from high to low.
+    lowest
+        + &window_sums[1..]
+            .iter()
+            .rev()
+            .fold(zero, |mut total, sum_i| {
+                total += sum_i;
+                for _ in 0..c {
+                    total.double_in_place();
+                }
+                total
+            })
 }

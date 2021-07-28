@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::op_ref)]
 // #![no_std]
 #![deny(
     warnings,
