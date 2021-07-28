@@ -1,12 +1,12 @@
-use ark_ec::{AffineCurve, ProjectiveCurve};
-use ark_ed_on_bls12_381::{EdwardsAffine, JubjubParameters, Fq, Fr};
+use ark_ec::ProjectiveCurve;
+use ark_ed_on_bls12_381::{Fq, Fr, JubjubParameters, SWProjective};
 use ark_ff::{BigInteger, PrimeField, UniformRand};
 use ark_r1cs_std::{
     alloc::AllocVar,
     boolean::Boolean,
     eq::EqGadget,
     fields::fp::FpVar,
-    groups::{curves::twisted_edwards::AffineVar, CurveVar},
+    groups::{curves::short_weierstrass::ProjectiveVar, CurveVar},
 };
 use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef,
@@ -23,9 +23,9 @@ fn main() {
 
     let mut rng = ark_std::test_rng();
 
-    let point_g = EdwardsAffine::rand(&mut rng);
+    let point_g = SWProjective::rand(&mut rng);
     let x = Fr::rand(&mut rng);
-    let point_h = point_g.mul(x).into_affine();
+    let point_h = point_g.mul(x.into_repr());
     let circuit = GroupOpCircuit {
         base: point_g,
         scalar: x,
@@ -41,9 +41,9 @@ fn main() {
 /// a circuit for the relation:
 ///   res = scalar * base
 struct GroupOpCircuit {
-    base: EdwardsAffine,
+    base: SWProjective,
     scalar: Fr,
-    res: EdwardsAffine,
+    res: SWProjective,
 }
 
 impl ConstraintSynthesizer<Fq> for GroupOpCircuit {
@@ -52,11 +52,12 @@ impl ConstraintSynthesizer<Fq> for GroupOpCircuit {
         cs: ConstraintSystemRef<Fq>,
     ) -> Result<(), SynthesisError> {
         let _cs_no = cs.num_constraints();
-        let base_var = AffineVar::<JubjubParameters, FpVar<Fq>>::new_witness(
-            cs.clone(),
-            || Ok(self.base),
-        )
-        .unwrap();
+        let base_var =
+            ProjectiveVar::<JubjubParameters, FpVar<Fq>>::new_witness(
+                cs.clone(),
+                || Ok(self.base),
+            )
+            .unwrap();
 
         #[cfg(debug_assertions)]
         println!("cs for base var: {}", cs.num_constraints() - _cs_no);
@@ -78,11 +79,12 @@ impl ConstraintSynthesizer<Fq> for GroupOpCircuit {
         println!("cs for mul : {}", cs.num_constraints() - _cs_no);
         let _cs_no = cs.num_constraints();
 
-        let res_var = AffineVar::<JubjubParameters, FpVar<Fq>>::new_witness(
-            cs.clone(),
-            || Ok(self.res),
-        )
-        .unwrap();
+        let res_var =
+            ProjectiveVar::<JubjubParameters, FpVar<Fq>>::new_witness(
+                cs.clone(),
+                || Ok(self.res),
+            )
+            .unwrap();
 
         #[cfg(debug_assertions)]
         println!("cs for result var : {}", cs.num_constraints() - _cs_no);
