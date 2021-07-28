@@ -14,7 +14,6 @@ edition = "2018"
 ark-ff = { version = "^0.3.0", default-features = false }
 ark-ec = { version = "^0.3.0", default-features = false }
 ark-std = { version = "^0.3.0", default-features = false }
-# ark-r1cs-std = { version = "^0.3.0", default-features = false, optional = true }
 ark-r1cs-std = { version = "^0.3.0", default-features = false }
 ark-bls12-381 = { version = "^0.3.0", default-features = false, features = [ "scalar_field" ] }
 num-bigint = { version = "0.4.0", default-features = false }
@@ -29,8 +28,7 @@ ark-curve-constraint-tests = { version = "^0.3.0", default-features = false }
 ark-groth16 = { version = "0.3.0", default-features = false, features = [ "r1cs" ] }
 
 # benchmarking 
-# ark-ed-on-bls12-381 = { version = "0.3.0", default-features = false }
-ark-ed-on-bls12-381 = { git = "https://github.com/zhenfeizhang/curves/", branch = "new_branch", default-features = false }
+ark-ed-on-bls12-381 = { version = "0.3.0", default-features = false }
 ark-bls12-381 = { version = "0.3.0", default-features = false, features = [ "curve" ] }
 
 ark-ed-on-bls12-377 = { version = "0.3.0", default-features = false }
@@ -45,6 +43,7 @@ criterion = "0.3.4"
 
 [[bench]]
 name = "bandersnatch_bench"
+path = "benches/bandersnatch_bench.rs"
 harness = false
 
 [features]

@@ -1,5 +1,5 @@
 use ark_ec::{AffineCurve, ProjectiveCurve};
-use ark_ed_on_bls12_381::{EdwardsAffine, JubjubParameters, Fq, Fr};
+use ark_ed_on_bls12_381::{EdwardsAffine, EdwardsParameters, Fq, Fr};
 use ark_ff::{BigInteger, PrimeField, UniformRand};
 use ark_r1cs_std::{
     alloc::AllocVar,
@@ -52,7 +52,7 @@ impl ConstraintSynthesizer<Fq> for GroupOpCircuit {
         cs: ConstraintSystemRef<Fq>,
     ) -> Result<(), SynthesisError> {
         let _cs_no = cs.num_constraints();
-        let base_var = AffineVar::<JubjubParameters, FpVar<Fq>>::new_witness(
+        let base_var = AffineVar::<EdwardsParameters, FpVar<Fq>>::new_witness(
             cs.clone(),
             || Ok(self.base),
         )
@@ -78,7 +78,7 @@ impl ConstraintSynthesizer<Fq> for GroupOpCircuit {
         println!("cs for mul : {}", cs.num_constraints() - _cs_no);
         let _cs_no = cs.num_constraints();
 
-        let res_var = AffineVar::<JubjubParameters, FpVar<Fq>>::new_witness(
+        let res_var = AffineVar::<EdwardsParameters, FpVar<Fq>>::new_witness(
             cs.clone(),
             || Ok(self.res),
         )

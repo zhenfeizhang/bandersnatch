@@ -14,12 +14,6 @@ There was also a Python reference implementation [here](https://github.com/asans
 - This code is not audited and may contain severe security flaws. Use at your own risk.
 - Version 0.1.0.
 - This repo is upstreamed to Arkworks [curve](https://github.com/arkworks-rs/curves/) crate.
-- Todos:
-    - [x] GVL multiplication
-    - [x] R1CS for GLV multiplication
-    - [ ] Documentation coverage
-    - [x] Test coverage
-    - [x] Update benchmark data for Benchmark section.
 
 # Howto
 
