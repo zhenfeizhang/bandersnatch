@@ -1,6 +1,6 @@
 [package]
 name = "bandersnatch"
-version = "0.1.0"
+version = "0.1.1"
 authors = [ "zhenfei zhang" ]
 description = "Bandersnatch: a curve defined over the scalar field of the BLS12-381 curve"
 repository = "https://github.com/zhenfeizhang/bandersnatch"
@@ -14,7 +14,7 @@ edition = "2018"
 ark-ff = { version = "^0.3.0", default-features = false }
 ark-ec = { version = "^0.3.0", default-features = false }
 ark-std = { version = "^0.3.0", default-features = false }
-ark-r1cs-std = { version = "^0.3.0", default-features = false }
+ark-r1cs-std = { version = "^0.3.0", default-features = false, optional = true }
 ark-bls12-381 = { version = "^0.3.0", default-features = false, features = [ "scalar_field" ] }
 num-bigint = { version = "0.4.0", default-features = false }
 
@@ -57,4 +57,4 @@ std = [
     "ark-ec/std", 
     "ark-bls12-381/std" 
 ]
-# r1cs = ["ark-r1cs-std"]
+r1cs = ["ark-r1cs-std"]
