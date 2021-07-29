@@ -15,8 +15,13 @@ There was also a Python reference implementation [here](https://github.com/asans
 
 - This code is released under MIT license.
 - This code is not audited and may contain severe security flaws. Use at your own risk.
-- Version 0.1.0.
+- Version 0.1.1.
 - This repo is upstreamed to Arkworks [curve](https://github.com/arkworks-rs/curves/) crate.
+
+# Change log
+
+__0.1.1__: use a zcash style generator
+__0.1.0__: release
 
 # Howto
 
