@@ -104,10 +104,10 @@ impl MontgomeryModelParameters for BandersnatchParameters {
     type TEModelParameters = BandersnatchParameters;
 }
 
-/// generators are generated following Zcash's fashion:
-///  "The generators of G1 and G2 are computed by finding the lexicographically smallest
-///   valid x-coordinate, and its lexicographically smallest y-coordinate and scaling it
-///   by the cofactor such that the result is not the point at infinity."
+// generators are generated following Zcash's fashion:
+//  "The generators of G1 and G2 are computed by finding the lexicographically smallest
+//   valid x-coordinate, and its lexicographically smallest y-coordinate and scaling it
+//   by the cofactor such that the result is not the point at infinity."
 
 /// x coordinate for TE curve generator
 const TE_GENERATOR_X: Fq = field_new!(
