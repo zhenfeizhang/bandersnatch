@@ -2,6 +2,10 @@ from bandersnatch import Point, Scalar
 import copy
 import time
 
+# constructor
+s = Scalar()
+s.from_u64(0x123)
+print(s)
 
 # get the generator
 g = Point(generator = True)
@@ -36,8 +40,8 @@ assert p1 == p2
 
 # multi-base-multiplication
 r = Point()
-bases = [Point().p for _ in range (1000)]
-scalars = [Scalar().s for _ in range (1000)]
+bases = [Point() for _ in range (1000)]
+scalars = [Scalar() for _ in range (1000)]
 t3 = time.process_time()
 Point.msm(r, bases, scalars)
 t3 = time.process_time() - t3
@@ -56,3 +60,18 @@ assert p1 == p2
 print(p.p)
 # compressed form
 print(p.serialize())
+
+# serdes a point
+b = p.serialize()
+p2 = Point()
+p2.deserialize(b)
+
+assert p == p2
+
+# serdes a scalar
+s = Scalar()
+b = s.serialize()
+s2 = Scalar()
+s2.deserialize(b)
+
+assert s == s2

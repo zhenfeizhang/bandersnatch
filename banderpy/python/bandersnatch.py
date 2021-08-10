@@ -36,6 +36,10 @@ class Point():
     def serialize(self):
         return bytes(point_serialize_rust(self.p))
 
+    def deserialize(self, b):
+        s = [e for e in b]
+        self.p = point_deserialize_rust(s)    
+
 
 class Scalar():
     def __init__(self):
@@ -51,4 +55,11 @@ class Scalar():
         return self.s == other.s
 
     def serialize(self):
-        return bytes(scalar_serialize_rust(self.s))
+        return bytes(self.s)
+
+    def deserialize(self, b):
+        s = [e for e in b]
+        self.s = s    
+
+    def from_u64(self, b):
+        self.s = from_u64_rust(b)    

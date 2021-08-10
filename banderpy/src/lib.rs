@@ -13,6 +13,11 @@ py_module_initializer!(libbanderpy, |py, m| {
     m.add(py, "__doc__", "This module is implemented in Rust.")?;
 
     // ========================
+    // constructor
+    // ========================
+    m.add(py, "from_u64_rust", py_fn!(py, fr_from_u64(input: u64)))?;
+
+    // ========================
     // generator
     // ========================
     m.add(py, "get_generator_rust", py_fn!(py, get_generator()))?;
@@ -80,15 +85,25 @@ py_module_initializer!(libbanderpy, |py, m| {
         py_fn!(py, point_serialize(obj: Vec<u8>)),
     )?;
 
-    // serialize a scalar
+    // deserialize a point
     m.add(
         py,
-        "scalar_serialize_rust",
-        py_fn!(py, scalar_serialize(obj: Vec<u8>)),
+        "point_deserialize_rust",
+        py_fn!(py, point_deserialize(obj: Vec<u8>)),
     )?;
 
     Ok(())
 });
+
+    // ========================
+    // constructor
+    // ========================
+    fn fr_from_u64(_:Python, input: u64)-> PyResult<Vec<u8>> {
+        let mut buf = Vec::new();
+        Fr::from(input).serialize(&mut buf).expect("serialization error");
+        Ok(buf)
+    }
+
 
 // ========================
 // generator
@@ -222,10 +237,11 @@ fn point_serialize(_: Python, obj: Vec<u8>) -> PyResult<Vec<u8>> {
     Ok(buf)
 }
 
-fn scalar_serialize(_: Python, obj: Vec<u8>) -> PyResult<Vec<u8>> {
-    let p = Fr::deserialize(&obj[..]).expect("deserialization error");
+fn point_deserialize(_: Python, obj: Vec<u8>) -> PyResult<Vec<u8>> {
+    let p = EdwardsAffine::deserialize(&obj[..])
+        .expect("deserialization error");
     let mut buf = Vec::new();
-    p.serialize(&mut buf).expect("serialization error");
+    p.serialize_unchecked(&mut buf).expect("serialization error");
 
     Ok(buf)
 }
