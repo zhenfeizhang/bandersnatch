@@ -1,4 +1,5 @@
 from libbanderpy import *
+from copy import deepcopy
 
 class Point():
 
@@ -27,15 +28,21 @@ class Point():
         self.p = glv_rust(self.p, scalar.s)
 
     def msm(self, points, scalars):
-        self.p = msm_rust(points, scalars)
+        self.p = msm_rust([x.p for x in points], [x.s for x in scalars])
+
+    def dup(self):
+        return deepcopy(self)
 
     def serialize(self):
-        return point_serialize_rust(self.p)    
+        return bytes(point_serialize_rust(self.p))
 
 
 class Scalar():
     def __init__(self):
         self.s = random_scalar_rust()
+
+    def dup(self):
+        return deepcopy(self)
 
     def __str__(self):
         return scalar_to_string_rust(self.s)
@@ -44,4 +51,4 @@ class Scalar():
         return self.s == other.s
 
     def serialize(self):
-        return scalar_serialize_rust(self.s)    
+        return bytes(scalar_serialize_rust(self.s))
