@@ -171,9 +171,9 @@ impl GLVParameters for BandersnatchParameters {
         base: &Self::CurveAffine,
         scalar: &Self::ScalarField,
     ) -> Self::CurveProjective {
-        let psi_base = Self::endomorphism(&base);
+        let psi_base = Self::endomorphism(base);
         let (k1, k2) = Self::scalar_decomposition(scalar);
-        two_scalar_mul(&base, &k1, &psi_base, &k2)
+        two_scalar_mul(base, &k1, &psi_base, &k2)
     }
 }
 
@@ -318,12 +318,12 @@ pub fn multi_scalar_mul<G: AffineCurve>(
     let fr_one = G::ScalarField::one().into_repr();
 
     let zero = G::Projective::zero();
-    let window_starts: Vec<_> = (0..num_bits).step_by(c).collect();
+    let window_starts = (0..num_bits).step_by(c);
 
     // Each window is of size `c`.
     // We divide up the bits 0..num_bits into windows of size `c`, and
     // in parallel process each such window.
-    let window_sums: Vec<_> = ark_std::cfg_into_iter!(window_starts)
+    let window_sums: Vec<_> = window_starts
         .map(|w_start| {
             let mut res = zero;
             // We don't need the "zero" bucket, so we only have 2^c - 1 buckets.

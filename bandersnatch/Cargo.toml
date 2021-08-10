@@ -1,0 +1,59 @@
+[package]
+name = "bandersnatch"
+version = "0.1.1"
+authors = [ "zhenfei zhang" ]
+description = "Bandersnatch: a curve defined over the scalar field of the BLS12-381 curve"
+repository = "https://github.com/zhenfeizhang/bandersnatch"
+keywords = ["cryptography", "finite-fields", "elliptic-curves" ]
+categories = ["cryptography"]
+include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
+license = "MIT/Apache-2.0"
+edition = "2018"
+
+[dependencies]
+ark-ff = { version = "^0.3.0", default-features = false }
+ark-ec = { version = "^0.3.0", default-features = false }
+ark-std = { version = "^0.3.0", default-features = false }
+ark-r1cs-std = { version = "^0.3.0", default-features = false }
+ark-bls12-381 = { version = "^0.3.0", default-features = false, features = [ "scalar_field" ] }
+num-bigint = { version = "0.4.0", default-features = false }
+
+
+[dev-dependencies]
+# testing
+ark-relations = { version = "^0.3.0", default-features = false }
+ark-serialize = { version = "^0.3.0", default-features = false }
+ark-algebra-test-templates = { version = "^0.3.0", default-features = false }
+ark-curve-constraint-tests = { version = "^0.3.0", default-features = false }
+ark-groth16 = { version = "0.3.0", default-features = false, features = [ "r1cs" ] }
+
+# benchmarking 
+# ark-ed-on-bls12-381 = { version = "0.3.0", default-features = false }
+ark-ed-on-bls12-381 = { git = "https://github.com/zhenfeizhang/curves/", branch = "new_branch", default-features = false }
+ark-bls12-381 = { version = "0.3.0", default-features = false, features = [ "curve" ] }
+
+ark-ed-on-bls12-377 = { version = "0.3.0", default-features = false }
+ark-bls12-377 = { version = "0.3.0", default-features = false, features = [ "curve" ] }
+
+blst = { version = "0.3.4", default-features = false }
+
+rand_chacha = { version = "0.3.0", default-features = false }
+
+bencher = "0.1.5"
+criterion = "0.3.4"
+
+[[bench]]
+name = "bandersnatch_bench"
+harness = false
+
+[features]
+default = []
+asm = [
+    "ark-ff/asm"
+]
+std = [ 
+    "ark-std/std", 
+    "ark-ff/std", 
+    "ark-ec/std", 
+    "ark-bls12-381/std" 
+]

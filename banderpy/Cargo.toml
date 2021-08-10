@@ -1,0 +1,28 @@
+[package]
+name = "banderpy"
+version = "0.1.0"
+edition = "2018"
+authors = [ "zhenfei zhang" ]
+description = "A python binder for Bandersnatch"
+repository = "https://github.com/zhenfeizhang/bandersnatch"
+keywords = ["cryptography", "finite-fields", "elliptic-curves" ]
+categories = ["cryptography"]
+include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "banderpy"
+crate-type = ["cdylib"]
+
+[dependencies]
+bandersnatch = { path = "../bandersnatch", features = [ "std" ] }
+cpython = { version = "0.6", features = ["extension-module"] }
+num-bigint = { version = "0.4.0", default-features = false }
+
+ark-ff = { version = "^0.3.0", default-features = false }
+ark-ec = { version = "^0.3.0", default-features = false }
+ark-std = { version = "^0.3.0", default-features = false }
+ark-serialize = { version = "^0.3.0", default-features = false }
+
+rand = { version = "0.8.3" }

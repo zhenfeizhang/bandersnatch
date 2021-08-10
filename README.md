@@ -8,8 +8,8 @@ bandersnatch-rust
 This is a reference implementation of [Bandersnatch curve](https://ethresear.ch/t/introducing-bandersnatch-a-fast-elliptic-curve-built-over-the-bls12-381-scalar-field/9957) using [Arkwork](https://github.com/arkworks-rs/curves)'s framework in Rust.
 The spec of the curve is available 
 [here](https://github.com/asanso/Bandersnatch/blob/main/README.md).
-There was also a Python reference implementation [here](https://github.com/asanso/Bandersnatch/).
-
+There is also a Python reference implementation [here](https://github.com/asanso/Bandersnatch/),
+and a python wrapper of this library [banderpy](https://github.com/zhenfeizhang/bandersnatch/tree/main/banderpy).
 
 # Logistics
 
