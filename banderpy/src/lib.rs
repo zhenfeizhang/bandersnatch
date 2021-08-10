@@ -73,8 +73,23 @@ py_module_initializer!(libbanderpy, |py, m| {
         py_fn!(py, scalar_to_string(obj: Vec<u8>)),
     )?;
 
+    // serialize a point
+    m.add(
+        py,
+        "point_serialize_rust",
+        py_fn!(py, point_serialize(obj: Vec<u8>)),
+    )?;
+
+    // serialize a scalar
+    m.add(
+        py,
+        "scalar_serialize_rust",
+        py_fn!(py, scalar_serialize(obj: Vec<u8>)),
+    )?;
+
     Ok(())
 });
+
 // ========================
 // generator
 // ========================
@@ -196,4 +211,21 @@ fn scalar_to_string(_: Python, obj: Vec<u8>) -> PyResult<String> {
     Ok(Fr::deserialize(&obj[..])
         .expect("deserialization error")
         .to_string())
+}
+
+fn point_serialize(_: Python, obj: Vec<u8>) -> PyResult<Vec<u8>> {
+    let p = EdwardsAffine::deserialize_unchecked(&obj[..])
+        .expect("deserialization error");
+    let mut buf = Vec::new();
+    p.serialize(&mut buf).expect("serialization error");
+
+    Ok(buf)
+}
+
+fn scalar_serialize(_: Python, obj: Vec<u8>) -> PyResult<Vec<u8>> {
+    let p = Fr::deserialize(&obj[..]).expect("deserialization error");
+    let mut buf = Vec::new();
+    p.serialize(&mut buf).expect("serialization error");
+
+    Ok(buf)
 }

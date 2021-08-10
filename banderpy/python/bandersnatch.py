@@ -29,6 +29,9 @@ class Point():
     def msm(self, points, scalars):
         self.p = msm_rust(points, scalars)
 
+    def serialize(self):
+        return point_serialize_rust(self.p)    
+
 
 class Scalar():
     def __init__(self):
@@ -36,3 +39,9 @@ class Scalar():
 
     def __str__(self):
         return scalar_to_string_rust(self.s)
+
+    def __eq__(self, other):
+        return self.s == other.s
+
+    def serialize(self):
+        return scalar_serialize_rust(self.s)    

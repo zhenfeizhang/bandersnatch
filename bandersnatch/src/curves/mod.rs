@@ -9,6 +9,7 @@ use ark_ec::{
 };
 use ark_ff::{field_new, Field};
 
+mod fix_base_mul;
 mod glv;
 
 pub use glv::{

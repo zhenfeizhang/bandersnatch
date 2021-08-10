@@ -51,3 +51,8 @@ p1.double()
 p2.add(p)
 
 assert p1 == p2
+
+# non-compressed form
+print(p.p)
+# compressed form
+print(p.serialize())
