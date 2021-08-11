@@ -4,7 +4,7 @@ import time
 
 # constructor
 s = Scalar()
-s.from_u64(0x123)
+s.from_int(0x123)
 print(s)
 
 # get the generator
@@ -75,3 +75,9 @@ s2 = Scalar()
 s2.deserialize(b)
 
 assert s == s2
+
+# Scalar from int (large)
+
+x = 12345687978978978908060696767006767007680678076834534535453423442324534543532
+s = Scalar().from_int(x)
+print(s)
