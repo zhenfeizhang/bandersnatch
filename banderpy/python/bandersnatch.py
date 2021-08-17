@@ -17,18 +17,30 @@ class Point():
     
     def add(self, other):
         self.p = add_rust(self.p, other.p)
+        return self
 
     def double(self):
         self.p = double_rust(self.p)
+        return self
 
     def mul(self, scalar):
-        self.p = mul_rust(self.p, scalar.s)
+        if isinstance(scalar, int):
+            self.p = mul_rust(self.p, Scalar().from_int(scalar).s)
+        else: 
+            self.p = mul_rust(self.p, scalar.s)
+        return self
 
     def glv(self, scalar):
-        self.p = glv_rust(self.p, scalar.s)
+        if isinstance(scalar, int):
+            self.p = glv_rust(self.p, Scalar().from_int(scalar).s)
+        else: 
+            self.p = glv_rust(self.p, scalar.s)
+        return self
 
     def msm(self, points, scalars):
-        self.p = msm_rust([x.p for x in points], [x.s for x in scalars])
+        self.p = msm_rust([x.p for x in points],
+                          [Scalar().from_int(x).s if isinstance(x, int) else x.s for x in scalars])
+        return self
 
     def dup(self):
         return deepcopy(self)
@@ -38,7 +50,8 @@ class Point():
 
     def deserialize(self, b):
         s = [e for e in b]
-        self.p = point_deserialize_rust(s)    
+        self.p = point_deserialize_rust(s)
+        return self
 
 
 class Scalar():
@@ -59,7 +72,9 @@ class Scalar():
 
     def deserialize(self, b):
         s = [e for e in b]
-        self.s = s    
+        self.s = s
+        return self
 
-    def from_u64(self, b):
-        self.s = from_u64_rust(b)    
+    def from_int(self, b):
+        self.s = [e for e in b.to_bytes(32, "little")]
+        return self
