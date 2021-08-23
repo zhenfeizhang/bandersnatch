@@ -1,9 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::op_ref)]
-// #![no_std]
 #![deny(
-    warnings,
-    unused,
+    // warnings,
+    // unused,
     future_incompatible,
     nonstandard_style,
     rust_2018_idioms

@@ -11,8 +11,8 @@ use ark_std::{
     UniformRand,
 };
 use bandersnatch::{
-    BandersnatchParameters, EdwardsAffine as BandersnatchAffine, Fr,
-    GLVParameters,
+    BandersnatchParameters, EdwardsAffine as BandersnatchAffine, FixedBaseGLV,
+    FixedBaseMul, Fr, GLVParameters,
 };
 use criterion::Criterion;
 use rand_chacha::ChaCha20Rng;
@@ -22,10 +22,10 @@ criterion_group!(
     bench_endomorphism,
     bench_decomposition,
     bench_2sm,
-    bench_msm,
     bench_bandersnatch,
     bench_jubjub,
     bench_ed_on_bls_12_377,
+    bench_msm,
     bench_bls12_381_g1,
     bench_bls12_381_g2,
     bench_bls12_381_pairing,
@@ -130,6 +130,37 @@ fn bench_bandersnatch(c: &mut Criterion) {
     let mut base_point =
         bandersnatch::EdwardsAffine::prime_subgroup_generator();
 
+    let base_vector: Vec<bandersnatch::EdwardsProjective> =
+        <BandersnatchParameters as FixedBaseMul>::preprocessing(
+            base_point.into_projective(),
+        );
+
+    let base_ext_vector: Vec<[bandersnatch::EdwardsProjective; 4]> =
+        <BandersnatchParameters as FixedBaseGLV>::preprocessing(
+            base_point.into_projective(),
+        );
+
+    let mut rng = ChaCha20Rng::from_seed([0u8; 32]);
+    let bench_str = format!("variable base mul");
+    bench_group.bench_function(bench_str, move |b| {
+        let r = bandersnatch::Fr::rand(&mut rng);
+        b.iter(|| {
+            base_point.mul_assign(r);
+        })
+    });
+
+    let mut rng = ChaCha20Rng::from_seed([0u8; 32]);
+    let bench_str = format!("fix base mul");
+    bench_group.bench_function(bench_str, move |b| {
+        let r = bandersnatch::Fr::rand(&mut rng);
+        b.iter(|| {
+            <BandersnatchParameters as FixedBaseMul>::fixed_base_mul(
+                &base_vector,
+                r,
+            )
+        })
+    });
+
     let mut rng = ChaCha20Rng::from_seed([0u8; 32]);
     let bench_str = format!("glv mul");
     bench_group.bench_function(bench_str, move |b| {
@@ -140,13 +171,17 @@ fn bench_bandersnatch(c: &mut Criterion) {
     });
 
     let mut rng = ChaCha20Rng::from_seed([0u8; 32]);
-    let bench_str = format!("fix base mul");
+    let bench_str = format!("fix base mul with GLV");
     bench_group.bench_function(bench_str, move |b| {
         let r = bandersnatch::Fr::rand(&mut rng);
         b.iter(|| {
-            base_point.mul_assign(r);
+            <BandersnatchParameters as FixedBaseGLV>::fixed_base_mul(
+                &base_ext_vector,
+                r,
+            )
         })
     });
+
     bench_group.finish();
 }
 

@@ -158,6 +158,44 @@ fn test_decomp() {
 }
 
 #[test]
+fn test_fixed_base_mul() {
+    use ark_std::{rand::Rng, test_rng};
+
+    let mut rng = test_rng();
+    for _ in 0..100 {
+        let a: EdwardsProjective = rng.gen();
+        let base: Vec<EdwardsProjective> =
+            <BandersnatchParameters as FixedBaseMul>::preprocessing(a);
+        let r: Fr = rng.gen();
+
+        let b =
+            <BandersnatchParameters as FixedBaseMul>::fixed_base_mul(&base, r);
+        let c = BandersnatchParameters::glv_mul(&a.into_affine(), &r);
+
+        assert_eq!(b.into_affine(), c.into_affine())
+    }
+}
+
+#[test]
+fn test_fixed_base_glv() {
+    use ark_std::{rand::Rng, test_rng};
+
+    let mut rng = test_rng();
+    for _ in 0..100 {
+        let a: EdwardsProjective = rng.gen();
+        let base: Vec<[EdwardsProjective; 4]> =
+            <BandersnatchParameters as FixedBaseGLV>::preprocessing(a);
+        let r: Fr = rng.gen();
+
+        let b =
+            <BandersnatchParameters as FixedBaseGLV>::fixed_base_mul(&base, r);
+        let c = BandersnatchParameters::glv_mul(&a.into_affine(), &r);
+
+        assert_eq!(b.into_affine(), c.into_affine())
+    }
+}
+
+#[test]
 fn test_2sm() {
     let base_point = EdwardsAffine::from_str(
         "(29627151942733444043031429156003786749302466371339015363120350521834195802525, \

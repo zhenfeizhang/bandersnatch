@@ -12,6 +12,7 @@ use ark_ff::{field_new, Field};
 mod fix_base_mul;
 mod glv;
 
+pub use fix_base_mul::{FixedBaseGLV, FixedBaseMul};
 pub use glv::{
     multi_scalar_mul, multi_scalar_mul_with_glv, two_scalar_mul, GLVParameters,
 };

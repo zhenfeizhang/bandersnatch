@@ -95,15 +95,16 @@ py_module_initializer!(libbanderpy, |py, m| {
     Ok(())
 });
 
-    // ========================
-    // constructor
-    // ========================
-    fn fr_from_u64(_:Python, input: u64)-> PyResult<Vec<u8>> {
-        let mut buf = Vec::new();
-        Fr::from(input).serialize(&mut buf).expect("serialization error");
-        Ok(buf)
-    }
-
+// ========================
+// constructor
+// ========================
+fn fr_from_u64(_: Python, input: u64) -> PyResult<Vec<u8>> {
+    let mut buf = Vec::new();
+    Fr::from(input)
+        .serialize(&mut buf)
+        .expect("serialization error");
+    Ok(buf)
+}
 
 // ========================
 // generator
@@ -238,10 +239,11 @@ fn point_serialize(_: Python, obj: Vec<u8>) -> PyResult<Vec<u8>> {
 }
 
 fn point_deserialize(_: Python, obj: Vec<u8>) -> PyResult<Vec<u8>> {
-    let p = EdwardsAffine::deserialize(&obj[..])
-        .expect("deserialization error");
+    let p =
+        EdwardsAffine::deserialize(&obj[..]).expect("deserialization error");
     let mut buf = Vec::new();
-    p.serialize_unchecked(&mut buf).expect("serialization error");
+    p.serialize_unchecked(&mut buf)
+        .expect("serialization error");
 
     Ok(buf)
 }
