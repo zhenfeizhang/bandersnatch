@@ -1,3 +1,4 @@
+use super::non_native::*;
 use crate::*;
 use ark_bls12_381::Bls12_381;
 use ark_ec::{AffineCurve, ProjectiveCurve};
@@ -101,4 +102,26 @@ impl ConstraintSynthesizer<Fq> for GLVCircuit {
 
         res_var.enforce_equal(&res_var_recomputed)
     }
+}
+
+#[test]
+fn test_non_native_decomposition() {
+    use ark_std::UniformRand;
+
+    let mut rng = ark_std::test_rng();
+    for _ in 0..10 {
+        let scalar: Fr = Fr::rand(&mut rng);
+        let (k1, k2) = BandersnatchParameters::scalar_decomposition(&scalar);
+        assert_eq!(k2 * LAMBDA + k1, scalar);
+
+        let cs = ConstraintSystem::<Fq>::new_ref();
+
+        decomposition(k1, -k2, scalar, cs.clone()).unwrap();
+        println!(
+            "number of constraints for decomposition: {}",
+            cs.num_constraints()
+        );
+        assert!(cs.is_satisfied().unwrap());
+    }
+    assert!(false)
 }

@@ -1,4 +1,4 @@
-use crate::{constraints::FqVar, EdwardsParameters, GLVParameters};
+use crate::{constraints::FqVar, BandersnatchParameters, GLVParameters};
 use ark_ec::{
     short_weierstrass_jacobian::GroupProjective, ProjectiveCurve,
     SWModelParameters,
@@ -60,22 +60,30 @@ where
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
     fn endomorphism(&self) -> Self {
-        let coeff_a1_var =
-            FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_A1);
-        let coeff_a2_var =
-            FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_A2);
-        let coeff_a3_var =
-            FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_A3);
-        let coeff_b1_var =
-            FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_B1);
-        let coeff_b2_var =
-            FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_B2);
-        let coeff_b3_var =
-            FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_B3);
-        let coeff_c1_var =
-            FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_C1);
-        let coeff_c2_var =
-            FqVar::constant(<EdwardsParameters as GLVParameters>::COEFF_C2);
+        let coeff_a1_var = FqVar::constant(
+            <BandersnatchParameters as GLVParameters>::COEFF_A1,
+        );
+        let coeff_a2_var = FqVar::constant(
+            <BandersnatchParameters as GLVParameters>::COEFF_A2,
+        );
+        let coeff_a3_var = FqVar::constant(
+            <BandersnatchParameters as GLVParameters>::COEFF_A3,
+        );
+        let coeff_b1_var = FqVar::constant(
+            <BandersnatchParameters as GLVParameters>::COEFF_B1,
+        );
+        let coeff_b2_var = FqVar::constant(
+            <BandersnatchParameters as GLVParameters>::COEFF_B2,
+        );
+        let coeff_b3_var = FqVar::constant(
+            <BandersnatchParameters as GLVParameters>::COEFF_B3,
+        );
+        let coeff_c1_var = FqVar::constant(
+            <BandersnatchParameters as GLVParameters>::COEFF_C1,
+        );
+        let coeff_c2_var = FqVar::constant(
+            <BandersnatchParameters as GLVParameters>::COEFF_C2,
+        );
 
         let x_var = self.x.clone();
         let y_var = self.y.clone();

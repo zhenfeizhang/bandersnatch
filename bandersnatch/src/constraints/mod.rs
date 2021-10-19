@@ -104,6 +104,8 @@ mod curves;
 mod fields;
 // mod glv;
 
+mod non_native;
+
 #[cfg(test)]
 mod test;
 

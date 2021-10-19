@@ -4,7 +4,7 @@ use ark_ec::{
     msm::VariableBaseMSM as ArkVariableBaseMSM, AffineCurve, ProjectiveCurve,
 };
 use ark_ff::{bytes::FromBytes, field_new, Zero};
-use ark_std::{rand::Rng, str::FromStr, test_rng};
+use ark_std::{rand::Rng, str::FromStr, test_rng, vec::Vec};
 
 #[test]
 fn test_projective_curve() {
@@ -288,5 +288,4 @@ fn test_msm() {
 
         assert_eq!(res1, res2)
     }
-    // assert!(false)
 }

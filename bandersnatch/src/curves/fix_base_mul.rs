@@ -8,6 +8,7 @@ use ark_ec::{
 use ark_ff::{BigInteger, FpParameters, PrimeField};
 use ark_std::{
     ops::{AddAssign, SubAssign},
+    vec::Vec,
     Zero,
 };
 
