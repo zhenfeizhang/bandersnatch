@@ -56,7 +56,7 @@
 //! # }
 //! ```
 //!
-//! One can also perform standard algebraic operations on `EdwardsVar`:
+//! One can also perform standard algebraic operations on `EdwardsAffineVar`:
 //!
 //! ```
 //! # fn main() -> Result<(), ark_relations::r1cs::SynthesisError> {
@@ -73,16 +73,16 @@
 //! let b_native = EdwardsProjective::rand(&mut rng);
 //!
 //! // Allocate `a_native` and `b_native` as witness variables in `cs`.
-//! let a = EdwardsVar::new_witness(ark_relations::ns!(cs, "a"), || Ok(a_native))?;
-//! let b = EdwardsVar::new_witness(ark_relations::ns!(cs, "b"), || Ok(b_native))?;
+//! let a = EdwardsAffineVar::new_witness(ark_relations::ns!(cs, "a"), || Ok(a_native))?;
+//! let b = EdwardsAffineVar::new_witness(ark_relations::ns!(cs, "b"), || Ok(b_native))?;
 //!
 //! // Allocate `a_native` and `b_native` as constants in `cs`. This does not add any
 //! // constraints or variables.
-//! let a_const = EdwardsVar::new_constant(ark_relations::ns!(cs, "a_as_constant"), a_native)?;
-//! let b_const = EdwardsVar::new_constant(ark_relations::ns!(cs, "b_as_constant"), b_native)?;
+//! let a_const = EdwardsAffineVar::new_constant(ark_relations::ns!(cs, "a_as_constant"), a_native)?;
+//! let b_const = EdwardsAffineVar::new_constant(ark_relations::ns!(cs, "b_as_constant"), b_native)?;
 //!
 //! // This returns the identity of `Edwards`.
-//! let zero = EdwardsVar::zero();
+//! let zero = EdwardsAffineVar::zero();
 //!
 //! // Sanity check one + one = two
 //! let two_a = &a + &a + &zero;
@@ -102,13 +102,12 @@
 
 mod curves;
 mod fields;
-// mod glv;
 
-mod non_native;
+mod glv;
 
 #[cfg(test)]
 mod test;
 
 pub use curves::*;
 pub use fields::*;
-// pub use glv::*;
+pub use glv::*;

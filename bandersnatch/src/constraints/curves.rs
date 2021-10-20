@@ -4,20 +4,24 @@ use ark_r1cs_std::groups::curves::{
 };
 
 /// A variable that is the R1CS equivalent of `crate::EdwardsAffine`.
-pub type EdwardsVar = AffineVar<BandersnatchParameters, FqVar>;
+pub type EdwardsAffineVar = AffineVar<BandersnatchParameters, FqVar>;
 
 /// A variable that is the R1CS equivalent of `crate::EdwardsProjective`
-pub type SWVar = ProjectiveVar<BandersnatchParameters, FqVar>;
+pub type SWProjectiveVar = ProjectiveVar<BandersnatchParameters, FqVar>;
 
 #[test]
 fn test() {
-    ark_curve_constraint_tests::curves::te_test::<_, EdwardsVar>().unwrap();
-    ark_curve_constraint_tests::curves::sw_test::<BandersnatchParameters, SWVar>()
+    ark_curve_constraint_tests::curves::te_test::<_, EdwardsAffineVar>()
         .unwrap();
+    ark_curve_constraint_tests::curves::sw_test::<
+        BandersnatchParameters,
+        SWProjectiveVar,
+    >()
+    .unwrap();
     ark_curve_constraint_tests::curves::group_test::<
         EdwardsProjective,
         Fq,
-        EdwardsVar,
+        EdwardsAffineVar,
     >()
     .unwrap();
 }

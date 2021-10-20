@@ -1,5 +1,5 @@
-use super::non_native::*;
-use crate::*;
+use super::glv::*;
+use crate::{constraints::*, *};
 use ark_bls12_381::Bls12_381;
 use ark_ec::{AffineCurve, ProjectiveCurve};
 use ark_ff::{BigInteger, PrimeField, UniformRand};
@@ -13,11 +13,13 @@ use ark_r1cs_std::{
     eq::EqGadget,
     fields::fp::FpVar,
     groups::{curves::twisted_edwards::AffineVar, CurveVar},
+    R1CSVar, ToBitsGadget,
 };
 use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef,
     SynthesisError,
 };
+use ark_std::rand::Rng;
 
 #[test]
 fn test_bandersnatch_group_ops() {
@@ -106,8 +108,6 @@ impl ConstraintSynthesizer<Fq> for GLVCircuit {
 
 #[test]
 fn test_non_native_decomposition() {
-    use ark_std::UniformRand;
-
     let mut rng = ark_std::test_rng();
     for _ in 0..10 {
         let scalar: Fr = Fr::rand(&mut rng);
@@ -115,13 +115,109 @@ fn test_non_native_decomposition() {
         assert_eq!(k2 * LAMBDA + k1, scalar);
 
         let cs = ConstraintSystem::<Fq>::new_ref();
+        let mut scalar_vars = vec![];
+        for bit in scalar.into_repr().to_bits_le() {
+            scalar_vars
+                .push(Boolean::new_witness(cs.clone(), || Ok(bit)).unwrap());
+        }
 
-        decomposition(k1, -k2, scalar, cs.clone()).unwrap();
+        let _k_vars = decomposition(cs.clone(), &scalar_vars).unwrap();
         println!(
             "number of constraints for decomposition: {}",
             cs.num_constraints()
         );
         assert!(cs.is_satisfied().unwrap());
     }
-    assert!(false)
+    // assert!(false)
+}
+
+#[test]
+fn test_boolean_fp_var_conversion() {
+    let mut rng = ark_std::test_rng();
+    for _ in 0..10 {
+        let element: Fq = Fq::rand(&mut rng);
+
+        let cs = ConstraintSystem::<Fq>::new_ref();
+
+        let element_var =
+            FpVar::new_witness(cs.clone(), || Ok(element)).unwrap();
+        let boolean_vars = element_var.to_bits_le().unwrap();
+
+        println!(
+            "number of constraints for decomposition: {}",
+            cs.num_constraints()
+        );
+        println!(
+            "number of variables for decomposition: {} {}",
+            cs.num_instance_variables(),
+            cs.num_witness_variables(),
+        );
+        assert!(cs.is_satisfied().unwrap());
+        assert_eq!(element_var.value().unwrap(), element);
+
+        let new_element_var =
+            convert_boolean_var_to_fp_var(boolean_vars.as_ref()).unwrap();
+
+        assert!(cs.is_satisfied().unwrap());
+        assert_eq!(new_element_var.value().unwrap(), element);
+
+        println!(
+            "number of constraints for decomposition: {}",
+            cs.num_constraints()
+        );
+        println!(
+            "number of variables for decomposition: {} {}",
+            cs.num_instance_variables(),
+            cs.num_witness_variables(),
+        );
+
+        new_element_var.enforce_equal(&element_var).unwrap();
+
+        assert!(cs.is_satisfied().unwrap());
+        assert_eq!(new_element_var.value().unwrap(), element);
+
+        println!(
+            "number of constraints for decomposition: {}",
+            cs.num_constraints()
+        );
+        println!(
+            "number of variables for decomposition: {} {}\n",
+            cs.num_instance_variables(),
+            cs.num_witness_variables(),
+        );
+    }
+    // assert!(false)
+}
+
+#[test]
+fn test_glv_circuit() {
+    let mut rng = ark_std::test_rng();
+    for _ in 0..10 {
+        let cs = ConstraintSystem::<Fq>::new_ref();
+        let scalar: Fr = Fr::rand(&mut rng);
+        let point: EdwardsAffine = rng.gen();
+        let res =
+            BandersnatchParameters::glv_mul(&point, &scalar).into_affine();
+
+        // println!("{}", scalar.into_repr());
+
+        let point_var =
+            EdwardsAffineVar::new_witness(cs.clone(), || Ok(point)).unwrap();
+        let scalar_var: Vec<Boolean<Fq>> = scalar
+            .into_repr()
+            .to_bits_le()
+            .iter()
+            .map(|x| Boolean::new_witness(cs.clone(), || Ok(x)).unwrap())
+            .collect();
+        println!("number of constraints before glv: {}", cs.num_constraints());
+
+        let res_var = glv_mul(cs.clone(), &point_var, &scalar_var).unwrap();
+
+        println!("number of constraints after glv: {}", cs.num_constraints());
+        assert!(cs.is_satisfied().unwrap());
+
+        // check the correctness of the result
+        assert_eq!(res_var.value().unwrap(), res);
+    }
+    // assert!(false)
 }
