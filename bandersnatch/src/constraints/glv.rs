@@ -5,6 +5,7 @@ use crate::{
     constraints::{EdwardsAffineVar, FqVar},
     *,
 };
+use ark_ec::ProjectiveCurve;
 use ark_ff::{field_new, BigInteger, FpParameters, PrimeField, Zero};
 use ark_r1cs_std::{
     alloc::AllocVar, boolean::Boolean, fields::FieldVar, groups::CurveVar,
@@ -12,7 +13,6 @@ use ark_r1cs_std::{
 };
 use ark_relations::r1cs::{ConstraintSystemRef, SynthesisError};
 use num_bigint::{BigInt, BigUint};
-// use ark_std::println;
 
 /// The lambda parameter for decomposition.
 pub(crate) const LAMBDA:Fr = field_new!(Fr, "8913659658109529928382530854484400854125314752504019737736543920008458395397");
@@ -30,20 +30,23 @@ pub fn glv_mul_gadget(
     point_var: &EdwardsAffineVar,
     scalar_var: &FqVar,
 ) -> Result<EdwardsAffineVar, SynthesisError> {
+    #[cfg(debug_assertions)]
     println!(
         "number of constraints before decomposition: {}",
-        cs.clone().num_constraints()
+        cs.num_constraints()
     );
 
     let k_vars = scalar_decomposition_gadget(cs.clone(), scalar_var)?;
 
+    #[cfg(debug_assertions)]
     println!(
         "number of constraints after decomposition: {}",
-        cs.clone().num_constraints()
+        cs.num_constraints()
     );
 
-    let endor_base_var = endomorphism_gadget(point_var)?;
+    let endor_base_var = endomorphism_gadget(cs.clone(), point_var)?;
 
+    #[cfg(debug_assertions)]
     println!(
         "number of constraints after endomorphism: {}",
         cs.num_constraints()
@@ -52,15 +55,22 @@ pub fn glv_mul_gadget(
     multi_scalar_mul_gadget(point_var, &k_vars[0], &endor_base_var, &k_vars[1])
 }
 
-// Here we need to implement a customized MSM algorithm, since we know that
-// the high bits of Fr are restricted to be small, i.e. ~ 128 bits.
-// This MSM will save us some 128 doublings.
+/// The circuit for 2 base scalar multiplication.
 pub fn multi_scalar_mul_gadget(
     base: &EdwardsAffineVar,
     scalar_1: &[Boolean<Fq>],
     endor_base: &EdwardsAffineVar,
     scalar_2: &[Boolean<Fq>],
 ) -> Result<EdwardsAffineVar, SynthesisError> {
+    let length = scalar_1.len();
+    assert_eq!(
+        length,
+        scalar_2.len(),
+        "the input length do not equal: {} vs {}",
+        length,
+        scalar_2.len()
+    );
+
     let zero = EdwardsAffineVar::zero();
 
     let endor_base = endor_base.clone().negate()?;
@@ -68,16 +78,16 @@ pub fn multi_scalar_mul_gadget(
     let sum = base.clone() + endor_base.clone();
 
     let mut res = EdwardsAffineVar::zero();
-    for i in 0..128 {
+    for i in 0..length {
         res = res.double()?;
 
-        let add = scalar_1[128 - i - 1].select(
+        let add = scalar_1[length - i - 1].select(
             // both bits are 1 => add the sum to self
             // first bit is 1 and second bit is 0 => add the base to self
-            &scalar_2[128 - i - 1].select(&sum, base)?,
+            &scalar_2[length - i - 1].select(&sum, base)?,
             // first bit is 0 and second bit is 1 => add the endor_base to self
             // bot bits are 0 => ignore
-            &scalar_2[128 - i - 1].select(&endor_base, &zero)?,
+            &scalar_2[length - i - 1].select(&endor_base, &zero)?,
         )?;
         res += add;
     }
@@ -85,67 +95,74 @@ pub fn multi_scalar_mul_gadget(
     Ok(res)
 }
 
+/// The circuit for computing the point endomorphism.
 pub fn endomorphism_gadget(
+    cs: ConstraintSystemRef<Fq>,
     point_var: &EdwardsAffineVar,
 ) -> Result<EdwardsAffineVar, SynthesisError> {
-    let coeff_a1_var =
-        &FqVar::constant(<BandersnatchParameters as GLVParameters>::COEFF_A1);
-    let coeff_a2_var =
-        &FqVar::constant(<BandersnatchParameters as GLVParameters>::COEFF_A2);
-    let coeff_a3_var =
-        &FqVar::constant(<BandersnatchParameters as GLVParameters>::COEFF_A3);
-    let coeff_b1_var =
-        &FqVar::constant(<BandersnatchParameters as GLVParameters>::COEFF_B1);
-    let coeff_b2_var =
-        &FqVar::constant(<BandersnatchParameters as GLVParameters>::COEFF_B2);
-    let coeff_b3_var =
-        &FqVar::constant(<BandersnatchParameters as GLVParameters>::COEFF_B3);
-    let coeff_c1_var =
-        &FqVar::constant(<BandersnatchParameters as GLVParameters>::COEFF_C1);
-    let coeff_c2_var =
-        &FqVar::constant(<BandersnatchParameters as GLVParameters>::COEFF_C2);
+    let base = point_var.value()?.into_affine();
+    let endor_point =
+        <BandersnatchParameters as GLVParameters>::endomorphism(&base);
+    let new_x_var = FqVar::new_witness(cs.clone(), || Ok(endor_point.x))?;
+    let new_y_var = FqVar::new_witness(cs.clone(), || Ok(endor_point.y))?;
+
+    let coeff_b_var =
+        &FqVar::constant(<BandersnatchParameters as GLVParameters>::COEFF_B);
+    let coeff_c_var =
+        &FqVar::constant(<BandersnatchParameters as GLVParameters>::COEFF_C);
+
+    let coeff_b_square_var = &FqVar::constant(
+        <BandersnatchParameters as GLVParameters>::COEFF_B
+            * <BandersnatchParameters as GLVParameters>::COEFF_B,
+    );
 
     let x_var = &point_var.x;
     let y_var = &point_var.y;
-    let z_var = y_var;
 
-    let fy_var: FqVar =
-        coeff_a1_var * (y_var + coeff_a2_var) * (y_var + coeff_a3_var);
-    let gy_var: FqVar =
-        coeff_b1_var * (y_var + coeff_b2_var) * (y_var + coeff_b3_var);
-    let hy_var: FqVar = (y_var + coeff_c1_var) * (y_var + coeff_c2_var);
+    // xy = x * y
+    let xy_var = x_var * y_var;
+    // y_square = y^2
+    let y_square_var = y_var * y_var;
 
-    let x_var = x_var * &fy_var * &hy_var;
-    let y_var = &gy_var * z_var;
-    let z_var = &hy_var * z_var;
-    let z_var = z_var.inverse()?;
+    // f(y) = c(1-y^2)
+    let f_y_var = coeff_c_var - coeff_c_var * &y_square_var;
+    // g(y) = b(y^2 + b)
+    let g_y_var = coeff_b_var * &y_square_var + coeff_b_square_var;
+    // h(y) = y^2 - b
+    let h_y_var = y_square_var - coeff_b_var;
 
-    let x_var = x_var * &z_var;
-    let y_var = y_var * &z_var;
+    // x = f(y) / (xy)
+    f_y_var.enforce_equal(&(&xy_var * &new_x_var))?;
+    // y = g(y)/ h(y)
+    g_y_var.enforce_equal(&(&h_y_var * &new_y_var))?;
 
-    Ok(EdwardsAffineVar::new(x_var, y_var))
+    Ok(EdwardsAffineVar::new(new_x_var, new_y_var))
 }
 
 // Input a scalar s as in bit wires,
 // compute k1 and k2 s.t.
 //  s = k1 - lambda * k2 mod |Fr|
 // where
-// * s ~ 256 bits, private input
-// * lambda ~ 256 bits, public input
+// * s ~ 253 bits, private input
+// * lambda ~ 253 bits, public input
 // * k1, k2 each ~ 128 bits, private inputs
 // return the bit wires for k1 and k2
 pub fn scalar_decomposition_gadget(
     cs: ConstraintSystemRef<Fq>,
     s_var: &FqVar,
 ) -> Result<[Vec<Boolean<Fq>>; 2], SynthesisError> {
+    // the oder of scalar field
+    // r = 13108968793781547619861935127046491459309155893440570251786403306729687672801 < 2^253
+    // q = 52435875175126190479447740508185965837690552500527637822603658699938581184513 < 2^255
+
     // for an input scalar s,
     // we need to prove the following statement over ZZ
     //
     // (0) lambda * k2 + s = t * Fr::modulus + k1
     //
     // for some t, where
-    // * k1, k2 < 2^128
-    // * lambda, s, modulus are ~256 bits
+    // * k1, k2 < sqrt{2r} < 2^127
+    // * lambda, s, modulus are ~253 bits
     //
     // which becomes
     // (1) lambda_1 * k2 + 2^128 lambda_2 * k2 + s
@@ -153,6 +170,9 @@ pub fn scalar_decomposition_gadget(
     // where
     // (2) lambda = lambda_1 + 2^128 lambda_2   <- public info
     // (3) Fr::modulus = r1 + 2^128 r2          <- public info
+    // with
+    //  lambda_1 and r1 < 2^128
+    //  lambda_2 and r2 < 2^125
     //
     // reorganizing (1) gives us
     // (4)          lambda_1 * k2 + s - t * r1 - k1
@@ -163,6 +183,7 @@ pub fn scalar_decomposition_gadget(
     // (5) tmp = lambda_1 * k2 + s - t * r1 - k1
     // with
     // (6) tmp = tmp1 + 2^128 tmp2
+    // for tmp1 < 2^128 and tmp2 < 2^128
     //
     // that is
     // (7) tmp1 =  (lambda_1 * k2 + s - t * r1 - k1) % 2^128 = 0
@@ -172,8 +193,8 @@ pub fn scalar_decomposition_gadget(
     // (8) tmp2 + lambda_2 * k2 - t * r2 = 0
     //
     // the concrete statements that we need to prove (0) are
-    //  (a) k1 < 2^128
-    //  (b) k2 < 2^128
+    //  (a) k1 < 2^127
+    //  (b) k2 < 2^127
     //  (c) tmp1 = 0
     //  (d) tmp2 < 2^128
     //  (e) tmp = tmp1 + 2^128 tmp2
@@ -271,19 +292,19 @@ pub fn scalar_decomposition_gadget(
     // ============================================
     // step 3. range proofs
     // ============================================
-    //  (a) k1 < 2^128
-    //  (b) k2 < 2^128
+    //  (a) k1 < 2^127
+    //  (b) k2 < 2^127
     let k1_bits_vars =
-        decompose_and_enforce_less_than_128_bits(cs.clone(), &k1_var)?;
+        decompose_and_enforce_less_than_k_bits(cs.clone(), &k1_var, 127)?;
     let k2_bits_vars =
-        decompose_and_enforce_less_than_128_bits(cs.clone(), &k2_var)?;
+        decompose_and_enforce_less_than_k_bits(cs.clone(), &k2_var, 127)?;
 
     //  (c) tmp1 = 0        <- implied by tmp = 2^128 * tmp2
     //  (d) tmp2 < 2^128
     //  (e) tmp = tmp1 + 2^128 tmp2
     let tmp_var_rec = &tmp2_var * &two_to_128_var;
     tmp_var.enforce_equal(&tmp_var_rec)?;
-    decompose_and_enforce_less_than_128_bits(cs, &tmp2_var)?;
+    decompose_and_enforce_less_than_k_bits(cs, &tmp2_var, 128)?;
 
     // ============================================
     // step 4. equality proofs
@@ -320,29 +341,34 @@ macro_rules! int_to_fq {
     };
 }
 
-// Decomposite the elements into 128 booleans and prove that
-// input is the composition of those 128 booleans.
-// This implies that input < 2^128.
-// Return the 128 boolean constrains.
-// Cost: 129 constraints
-fn decompose_and_enforce_less_than_128_bits(
+// Decomposite the elements into bit_length booleans and prove that
+// input is the composition of those bit_length booleans.
+// This implies that input < 2^bit_length.
+// Return the bit_length boolean constrains.
+// Cost: bit_length+1 constraints
+fn decompose_and_enforce_less_than_k_bits(
     cs: ConstraintSystemRef<Fq>,
     input_var: &FqVar,
+    bit_length: usize,
 ) -> Result<Vec<Boolean<Fq>>, SynthesisError> {
+    if bit_length == 0 {
+        panic!("invalid input bit length {}", bit_length)
+    }
+
     let input_val = input_var.value()?;
     let input_bits = input_val.into_repr().to_bits_le();
     let input_bits_vars = input_bits
         .iter()
-        .take(128)
+        .take(bit_length)
         .map(|b| Boolean::new_witness(cs.clone(), || Ok(*b)))
         .collect::<Result<Vec<_>, _>>()?;
 
-    let mut res_var = FqVar::from(input_bits_vars[127].clone());
+    let mut res_var = FqVar::from(input_bits_vars[bit_length - 1].clone());
     for e in input_bits_vars.iter().rev().skip(1) {
         res_var = res_var.double()?;
         res_var = &res_var + FqVar::from(e.clone());
     }
-    res_var.enforce_equal(&input_var)?;
+    res_var.enforce_equal(input_var)?;
 
     Ok(input_bits_vars)
 }

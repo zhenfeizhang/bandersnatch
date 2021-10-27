@@ -17,14 +17,8 @@ pub trait GLVParameters: Send + Sync + 'static + ModelParameters {
 
     // phi(P) = lambda*P for all P
     // constants that are used to calculate phi(P)
-    const COEFF_A1: Self::BaseField;
-    const COEFF_A2: Self::BaseField;
-    const COEFF_A3: Self::BaseField;
-    const COEFF_B1: Self::BaseField;
-    const COEFF_B2: Self::BaseField;
-    const COEFF_B3: Self::BaseField;
-    const COEFF_C1: Self::BaseField;
-    const COEFF_C2: Self::BaseField;
+    const COEFF_B: Self::BaseField;
+    const COEFF_C: Self::BaseField;
 
     // constants that are used to perform scalar decomposition
     // This is a matrix which is practically the LLL reduced bases
@@ -54,44 +48,15 @@ impl GLVParameters for BandersnatchParameters {
 
     // phi(P) = lambda*P for all P
     // constants that are used to calculate phi(P)
-    const COEFF_A1: Self::BaseField = field_new!(
-        Fq,
-        "16179988757916560824577558193084210236647645729299773892093730683504906651604"
-    );
-
-    const COEFF_A2: Self::BaseField = field_new!(
+    // see <https://eprint.iacr.org/2021/1152>
+    const COEFF_B: Self::BaseField = field_new!(
         Fq,
         "37446463827641770816307242315180085052603635617490163568005256780843403514036"
     );
 
-    const COEFF_A3: Self::BaseField = field_new!(
+    const COEFF_C: Self::BaseField = field_new!(
         Fq,
-        "14989411347484419663140498193005880785086916883037474254598401919095177670477"
-    );
-
-    const COEFF_B1: Self::BaseField = field_new!(
-        Fq,
-        "37446463827641770816307242315180085052603635617490163568005256780843403514036"
-    );
-
-    const COEFF_B2: Self::BaseField = field_new!(
-        Fq,
-        "36553259151239542273674161596529768046449890757310263666255995151154432137034"
-    );
-
-    const COEFF_B3: Self::BaseField = field_new!(
-        Fq,
-        "15882616023886648205773578911656197791240661743217374156347663548784149047479"
-    );
-
-    const COEFF_C1: Self::BaseField = field_new!(
-        Fq,
-        "42910309089382041158038545419309140955400939872179826051492616687477682993077"
-    );
-
-    const COEFF_C2: Self::BaseField = field_new!(
-        Fq,
-        "9525566085744149321409195088876824882289612628347811771111042012460898191436"
+        "49199877423542878313146170939139662862850515542392585932876811575731455068989"
     );
 
     // constants that are used to perform scalar decomposition
@@ -116,20 +81,17 @@ impl GLVParameters for BandersnatchParameters {
 
     /// Mapping a point G to phi(G):= lambda G where phi is the endomorphism
     fn endomorphism(base: &Self::CurveAffine) -> Self::CurveAffine {
-        let mut x = base.x;
-        let mut y = base.y;
-        let mut z = y;
+        let x = base.x;
+        let y = base.y;
 
-        // z = y;
-        let fy = Self::COEFF_A1 * (y + Self::COEFF_A2) * (y + Self::COEFF_A3);
-        let gy = Self::COEFF_B1 * (y + Self::COEFF_B2) * (y + Self::COEFF_B3);
-        let hy = (y + Self::COEFF_C1) * (y + Self::COEFF_C2);
+        let xy = x * y;
+        let y_square = y * y;
+        let f_y = Self::COEFF_C * (Fq::one() - y_square);
+        let g_y = Self::COEFF_B * (y_square + Self::COEFF_B);
+        let h_y = y_square - Self::COEFF_B;
 
-        x = x * fy * hy;
-        y = gy * z;
-        z = hy * z;
-
-        Self::CurveProjective::new(x, y, Fq::one(), z).into_affine()
+        Self::CurveProjective::new(f_y * h_y, g_y * xy, Fq::one(), h_y * xy)
+            .into_affine()
     }
 
     /// Decompose a scalar s into k1, k2, s.t. s = k1 + lambda k2

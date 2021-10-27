@@ -70,7 +70,7 @@ impl ConstraintSynthesizer<Fq> for GroupOpCircuit {
         println!("cs for setup: {}", cs.num_constraints() - _cs_no);
         let _cs_no = cs.num_constraints();
 
-        let phi_var = endomorphism_gadget(&base_var)?;
+        let phi_var = endomorphism_gadget(cs.clone(), &base_var)?;
 
         // // sanity check
         // let phi = <EdwardsParameters as GLVParameters>::endomorphism(&self.base);
