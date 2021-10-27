@@ -96,6 +96,9 @@ impl ConstraintSynthesizer<Fq> for GroupOpCircuit {
         println!("cs for equality : {}", cs.num_constraints() - _cs_no);
         let _cs_no = cs.num_constraints();
 
+        #[cfg(debug_assertions)]
+        println!("total constraints : {}", cs.num_constraints());
+
         Ok(())
     }
 }

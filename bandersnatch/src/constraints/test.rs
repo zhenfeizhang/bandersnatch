@@ -115,13 +115,11 @@ fn test_non_native_decomposition() {
         assert_eq!(k2 * LAMBDA + k1, scalar);
 
         let cs = ConstraintSystem::<Fq>::new_ref();
-        let mut scalar_vars = vec![];
-        for bit in scalar.into_repr().to_bits_le() {
-            scalar_vars
-                .push(Boolean::new_witness(cs.clone(), || Ok(bit)).unwrap());
-        }
-
-        let _k_vars = decomposition(cs.clone(), &scalar_vars).unwrap();
+        let scalar_var =
+            FqVar::new_witness(cs.clone(), || Ok(Fq::from(scalar.into_repr())))
+                .unwrap();
+        let _k_vars =
+            scalar_decomposition_gadget(cs.clone(), &scalar_var).unwrap();
         println!(
             "number of constraints for decomposition: {}",
             cs.num_constraints()
@@ -203,15 +201,15 @@ fn test_glv_circuit() {
 
         let point_var =
             EdwardsAffineVar::new_witness(cs.clone(), || Ok(point)).unwrap();
-        let scalar_var: Vec<Boolean<Fq>> = scalar
-            .into_repr()
-            .to_bits_le()
-            .iter()
-            .map(|x| Boolean::new_witness(cs.clone(), || Ok(x)).unwrap())
-            .collect();
+
+        let scalar_var =
+            FqVar::new_witness(cs.clone(), || Ok(Fq::from(scalar.into_repr())))
+                .unwrap();
+
         println!("number of constraints before glv: {}", cs.num_constraints());
 
-        let res_var = glv_mul(cs.clone(), &point_var, &scalar_var).unwrap();
+        let res_var =
+            glv_mul_gadget(cs.clone(), &point_var, &scalar_var).unwrap();
 
         println!("number of constraints after glv: {}", cs.num_constraints());
         assert!(cs.is_satisfied().unwrap());
@@ -220,4 +218,10 @@ fn test_glv_circuit() {
         assert_eq!(res_var.value().unwrap(), res);
     }
     // assert!(false)
+}
+
+fn convert_boolean_var_to_fp_var(
+    input: &[Boolean<Fq>],
+) -> Result<FqVar, SynthesisError> {
+    Boolean::le_bits_to_fp_var(input)
 }

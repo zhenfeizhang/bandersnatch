@@ -5,10 +5,10 @@ use crate::{
     constraints::{EdwardsAffineVar, FqVar},
     *,
 };
-use ark_ff::{field_new, FpParameters, PrimeField, Zero};
+use ark_ff::{field_new, BigInteger, FpParameters, PrimeField, Zero};
 use ark_r1cs_std::{
     alloc::AllocVar, boolean::Boolean, fields::FieldVar, groups::CurveVar,
-    prelude::EqGadget, R1CSVar, ToBitsGadget,
+    prelude::EqGadget, R1CSVar,
 };
 use ark_relations::r1cs::{ConstraintSystemRef, SynthesisError};
 use num_bigint::{BigInt, BigUint};
@@ -25,20 +25,37 @@ const R1: Fq = field_new!(Fq, "339698375537151026184002201187337562081");
 /// Higher bits of r, s.t. r = r1 + 2^128 r2
 const R2: Fq = field_new!(Fq, "38523796905489664107205538631725381120");
 
-pub fn glv_mul(
+pub fn glv_mul_gadget(
     cs: ConstraintSystemRef<Fq>,
     point_var: &EdwardsAffineVar,
-    scalar_var: &[Boolean<Fq>],
+    scalar_var: &FqVar,
 ) -> Result<EdwardsAffineVar, SynthesisError> {
-    let k_vars = decomposition(cs, scalar_var)?;
-    let endor_base_var = endomorphism(point_var)?;
+    println!(
+        "number of constraints before decomposition: {}",
+        cs.clone().num_constraints()
+    );
+
+    let k_vars = scalar_decomposition_gadget(cs.clone(), scalar_var)?;
+
+    println!(
+        "number of constraints after decomposition: {}",
+        cs.clone().num_constraints()
+    );
+
+    let endor_base_var = endomorphism_gadget(point_var)?;
+
+    println!(
+        "number of constraints after endomorphism: {}",
+        cs.num_constraints()
+    );
+
     multi_scalar_mul_gadget(point_var, &k_vars[0], &endor_base_var, &k_vars[1])
 }
 
 // Here we need to implement a customized MSM algorithm, since we know that
 // the high bits of Fr are restricted to be small, i.e. ~ 128 bits.
 // This MSM will save us some 128 doublings.
-fn multi_scalar_mul_gadget(
+pub fn multi_scalar_mul_gadget(
     base: &EdwardsAffineVar,
     scalar_1: &[Boolean<Fq>],
     endor_base: &EdwardsAffineVar,
@@ -68,7 +85,7 @@ fn multi_scalar_mul_gadget(
     Ok(res)
 }
 
-pub(crate) fn endomorphism(
+pub fn endomorphism_gadget(
     point_var: &EdwardsAffineVar,
 ) -> Result<EdwardsAffineVar, SynthesisError> {
     let coeff_a1_var =
@@ -117,57 +134,52 @@ pub(crate) fn endomorphism(
 // * lambda ~ 256 bits, public input
 // * k1, k2 each ~ 128 bits, private inputs
 // return the bit wires for k1 and k2
-pub(crate) fn decomposition(
+pub fn scalar_decomposition_gadget(
     cs: ConstraintSystemRef<Fq>,
-    s_vars: &[Boolean<Fq>],
+    s_var: &FqVar,
 ) -> Result<[Vec<Boolean<Fq>>; 2], SynthesisError> {
-    assert_eq!(s_vars.len(), 256);
-
     // for an input scalar s,
     // we need to prove the following statement over ZZ
-    // 
+    //
     // (0) lambda * k2 + s = t * Fr::modulus + k1
-    // 
+    //
     // for some t, where
     // * k1, k2 < 2^128
     // * lambda, s, modulus are ~256 bits
     //
     // which becomes
-    // (1) lambda_1 * k2 + 2^128 lambda_2 * k2 + s1 + 2^128 s2
+    // (1) lambda_1 * k2 + 2^128 lambda_2 * k2 + s
     //        - t * r1 - t *2^128 r2 - k1 = 0
     // where
     // (2) lambda = lambda_1 + 2^128 lambda_2   <- public info
-    // (3) s = s1 + 2^128 s2
-    // (4) Fr::modulus = r1 + 2^128 r2          <- public info
+    // (3) Fr::modulus = r1 + 2^128 r2          <- public info
     //
     // reorganizing (1) gives us
-    // (5)          lambda_1 * k2 + s1 - t * r1 - k1
-    //     + 2^128 (lambda_2 * k2 + s2 - t * r2)
+    // (4)          lambda_1 * k2 + s - t * r1 - k1
+    //     + 2^128 (lambda_2 * k2 - t * r2)
     //     = 0
     //
     // Now set
-    // (6) tmp = lambda_1 * k2 + s1 - t * r1 - k1
+    // (5) tmp = lambda_1 * k2 + s - t * r1 - k1
     // with
-    // (7) tmp = tmp1 + 2^128 tmp2
+    // (6) tmp = tmp1 + 2^128 tmp2
     //
     // that is
-    // (8) tmp1 + 2^128 tmp2 =  lambda_1 * k2 + s1 - t * r1 - k1
+    // (7) tmp1 =  (lambda_1 * k2 + s - t * r1 - k1) % 2^128 = 0
     //
     // i.e. tmp2 will be the carrier overflowing 2^128,
     // and on the 2^128 term, we have
-    // (9) tmp2 + lambda_2 * k2 + s2  - t * r2 = 0
+    // (8) tmp2 + lambda_2 * k2 - t * r2 = 0
     //
     // the concrete statements that we need to prove (0) are
     //  (a) k1 < 2^128
     //  (b) k2 < 2^128
-    //  (c) s1 < 2^128
-    //  (d) s2 < 2^128
-    //  (e) tmp1 < 2^128
-    //  (f) tmp2 < 2^128
-    //  (h) s = s1 + 2^128 s2
-    //  (i) tmp1 + 2^128 tmp2 =  lambda_1 * k2 + s1 - t * r1 - k1
-    //  (j) tmp2 + lambda_2 * k2 + s2  = t * r2
-    // which can be evaluated over Fq without overflow
+    //  (c) tmp1 = 0
+    //  (d) tmp2 < 2^128
+    //  (e) tmp = tmp1 + 2^128 tmp2
+    //  (f) tmp1 + 2^128 tmp2 =  lambda_1 * k2 + s - t * r1 - k1
+    //  (g) tmp2 + lambda_2 * k2   = t * r2
+    // which can all be evaluated over Fq without overflow
 
     // ============================================
     // step 1: build integers
@@ -175,12 +187,10 @@ pub(crate) fn decomposition(
     // 2^128
     let two_to_128 = BigInt::from(2u64).pow(128);
 
-    // s = s1 + 2^128 * s2
-    let s = Boolean::le_bits_to_fp_var(s_vars)?.value()?;
+    // s
+    let s = s_var.value()?;
     let s_int = fq_to_big_int!(s);
     let s_fr = Fr::from(s.into_repr());
-    let s1_int = &s_int % &two_to_128;
-    let s2_int = &s_int / &two_to_128;
 
     // lambda = lambda_1 + 2^128 lambda_2
     let lambda_int = fq_to_big_int!(LAMBDA);
@@ -202,41 +212,36 @@ pub(crate) fn decomposition(
     // t = (lambda * k2 + s - k1) / fr_order
     let t_int = (&lambda_int * &k2_int + &s_int - &k1_int) / &fr_order_int;
 
-    // tmp = tmp1 + 2^128 tmp2 =  lambda_1 * k2 + s1 - t * r1 - k1
-    let tmp_int =
-        &lambda_1_int * &k2_int + &s1_int - &t_int * &r1_int - &k1_int;
+    // tmp = tmp1 + 2^128 tmp2 =  lambda_1 * k2 + s - t * r1 - k1
+    let tmp_int = &lambda_1_int * &k2_int + &s_int - &t_int * &r1_int - &k1_int;
     let tmp1_int = &tmp_int % &two_to_128;
     let tmp2_int = &tmp_int / &two_to_128;
 
-    // step 1.1 check the correctness of (0), (5), (i) and (j) in the clear
+    // step 1.1 check the correctness of (0), (4), (f) and (g) in the clear
     // equation (0): lambda * k2 + s = t * Fr::modulus + k1
     assert_eq!(
         &s_int + &lambda_int * &k2_int,
         &k1_int + &t_int * &fr_order_int
     );
 
-    // equation (5)
-    //              lambda_1 * k2 + s1 - t * r1 - k1
-    //     + 2^128 (lambda_2 * k2 + s2 - t * r2)
+    // equation (4)
+    //              lambda_1 * k2 + s - t * r1 - k1
+    //     + 2^128 (lambda_2 * k2 - t * r2)
     //     = 0
     assert_eq!(
-        &lambda_1_int * &k2_int + &s1_int - &t_int * &r1_int - &k1_int
-            + &two_to_128
-                * (&lambda_2_int * &k2_int + &s2_int - &t_int * &r2_int),
+        &lambda_1_int * &k2_int + &s_int - &t_int * &r1_int - &k1_int
+            + &two_to_128 * (&lambda_2_int * &k2_int - &t_int * &r2_int),
         BigInt::zero()
     );
 
-    // equation (i): tmp1 + 2^128 tmp2 =  lambda_1 * k2 + s1 - t * r1 - k1
+    // equation (f): tmp1 + 2^128 tmp2 =  lambda_1 * k2 + s - t * r1 - k1
     assert_eq!(
         &tmp1_int + &two_to_128 * &tmp2_int,
-        &lambda_1_int * &k2_int + &s1_int - &t_int * &r1_int - &k1_int
+        &lambda_1_int * &k2_int + &s_int - &t_int * &r1_int - &k1_int
     );
 
-    //  equation (j) tmp2 + lambda_2 * k2 + s2  = t * r2
-    assert_eq!(
-        &tmp2_int + &lambda_2_int * &k2_int + &s2_int,
-        &t_int * &r2_int
-    );
+    // equation (g) tmp2 + lambda_2 * k2 + s2  = t * r2
+    assert_eq!(&tmp2_int + &lambda_2_int * &k2_int, &t_int * &r2_int);
 
     // ============================================
     // step 2. build the variables
@@ -249,60 +254,56 @@ pub(crate) fn decomposition(
     let r1_var = FqVar::new_constant(cs.clone(), R1)?;
     let r2_var = FqVar::new_constant(cs.clone(), R2)?;
 
+    let two_to_128_var = FqVar::new_constant(
+        cs.clone(),
+        Fq::from(BigUint::from(2u64).pow(128)),
+    )?;
+
     // secret variables
     let k1_var = FqVar::new_witness(cs.clone(), || Ok(int_to_fq!(k1_int)))?;
     let k2_var = FqVar::new_witness(cs.clone(), || Ok(int_to_fq!(k2_int)))?;
 
-    let s1_var = convert_boolean_var_to_fp_var(&s_vars[0..128])?;
-    let s2_var = convert_boolean_var_to_fp_var(&s_vars[128..])?;
-
     let t_var = FqVar::new_witness(cs.clone(), || Ok(int_to_fq!(t_int)))?;
 
-    let tmp_var = FqVar::new_witness(cs, || Ok(int_to_fq!(tmp_int)))?;
-    let tmp_boolean_vars = tmp_var.to_bits_le()?;
-    let tmp2_var = convert_boolean_var_to_fp_var(&tmp_boolean_vars[128..])?;
+    let tmp_var = FqVar::new_witness(cs.clone(), || Ok(int_to_fq!(tmp_int)))?;
+    let tmp2_var = FqVar::new_witness(cs.clone(), || Ok(int_to_fq!(tmp2_int)))?;
 
     // ============================================
     // step 3. range proofs
     // ============================================
     //  (a) k1 < 2^128
     //  (b) k2 < 2^128
-    let k1_bits_var = k1_var.to_bits_le()?;
-    let k2_bits_var = k2_var.to_bits_le()?;
-    enforce_bits_are_0s(&[&k1_bits_var[128..], &k2_bits_var[128..]].concat())?;
+    let k1_bits_vars =
+        decompose_and_enforce_less_than_128_bits(cs.clone(), &k1_var)?;
+    let k2_bits_vars =
+        decompose_and_enforce_less_than_128_bits(cs.clone(), &k2_var)?;
 
-    //  (c) s1 < 2^128
-    //  (d) s2 < 2^128
-    // Implied by
-    //  let s1_var = convert_boolean_var_to_fp_var(&s_vars[0..128])?;
-    //  let s2_var = convert_boolean_var_to_fp_var(&s_vars[128..])?;
-
-    //  (e) tmp1 < 2^128
-    //  (f) tmp2 < 2^128
-    //  (h) tmp = tmp1 + 2^128 tmp2
-    // Implied by
-    //  let tmp2_var = convert_boolean_var_to_fp_var( &tmp_boolean_vars[128..])?;
+    //  (c) tmp1 = 0        <- implied by tmp = 2^128 * tmp2
+    //  (d) tmp2 < 2^128
+    //  (e) tmp = tmp1 + 2^128 tmp2
+    let tmp_var_rec = &tmp2_var * &two_to_128_var;
+    tmp_var.enforce_equal(&tmp_var_rec)?;
+    decompose_and_enforce_less_than_128_bits(cs, &tmp2_var)?;
 
     // ============================================
     // step 4. equality proofs
     // ============================================
-    //  (i) tmp =  lambda_1 * k2 + s1 - t * r1 - k1
+    //  (f) tmp =  lambda_1 * k2 + s - t * r1 - k1
     let right1 = lambda_1_var * (&k2_var);
-    let right2 = right1 + (&s1_var);
+    let right2 = right1 + s_var;
     let right3 = (&t_var) * (&r1_var);
     let right = right2 - (&right3);
     let right = right - (&k1_var);
     right.enforce_equal(&tmp_var)?;
 
-    //  (j) tmp2 + lambda_2 * k2 + s2 = t * r2
+    //  (g) tmp2 + lambda_2 * k2 = t * r2
     let left1 = lambda_2_var * (&k2_var);
     let left = tmp2_var + (&left1);
-    let left = left + (&s2_var);
     let right = t_var * (r2_var);
     right.enforce_equal(&left)?;
 
     // extract the output
-    Ok([k1_bits_var[..128].to_vec(), k2_bits_var[..128].to_vec()])
+    Ok([k1_bits_vars, k2_bits_vars])
 }
 
 #[macro_export]
@@ -319,27 +320,29 @@ macro_rules! int_to_fq {
     };
 }
 
-pub(crate) fn convert_boolean_var_to_fp_var(
-    input: &[Boolean<Fq>],
-) -> Result<FqVar, SynthesisError> {
-    Boolean::le_bits_to_fp_var(input)
-}
-
-
-/// For a slice of bits: b_0...b_k, enforce
-///     b_0^2 + b_1^2 ... + b_k^0 = 0 over Fq
-/// This is slightly more efficient than Boolean::kary_or()
-/// which enforces b0 | b1 | ... | bk = 0
-fn enforce_bits_are_0s(input: &[Boolean<Fq>]) -> Result<(), SynthesisError> {
-    let bits_fq: Vec<FqVar> = input
+// Decomposite the elements into 128 booleans and prove that
+// input is the composition of those 128 booleans.
+// This implies that input < 2^128.
+// Return the 128 boolean constrains.
+// Cost: 129 constraints
+fn decompose_and_enforce_less_than_128_bits(
+    cs: ConstraintSystemRef<Fq>,
+    input_var: &FqVar,
+) -> Result<Vec<Boolean<Fq>>, SynthesisError> {
+    let input_val = input_var.value()?;
+    let input_bits = input_val.into_repr().to_bits_le();
+    let input_bits_vars = input_bits
         .iter()
         .take(128)
-        .map(|x| FqVar::from(x.clone()))
-        .collect();
+        .map(|b| Boolean::new_witness(cs.clone(), || Ok(*b)))
+        .collect::<Result<Vec<_>, _>>()?;
 
-    let mut sum = bits_fq[0].clone() * (&bits_fq[0].clone());
-    for e in bits_fq.iter().take(128).skip(1) {
-        sum += &e.clone() * &e.clone();
+    let mut res_var = FqVar::from(input_bits_vars[127].clone());
+    for e in input_bits_vars.iter().rev().skip(1) {
+        res_var = res_var.double()?;
+        res_var = &res_var + FqVar::from(e.clone());
     }
-    sum.enforce_equal(&FqVar::zero())
+    res_var.enforce_equal(&input_var)?;
+
+    Ok(input_bits_vars)
 }
