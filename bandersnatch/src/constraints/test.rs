@@ -109,16 +109,20 @@ impl ConstraintSynthesizer<Fq> for GLVCircuit {
 #[test]
 fn test_non_native_decomposition() {
     let mut rng = ark_std::test_rng();
-    for _ in 0..10 {
+    for i in 0..100 {
+        println!("{}", i);
         let scalar: Fr = Fr::rand(&mut rng);
-        let (k1, k2) = BandersnatchParameters::scalar_decomposition(&scalar);
-        assert_eq!(k2 * LAMBDA + k1, scalar);
+        let (k1, k2, is_k2_positive) =
+            BandersnatchParameters::scalar_decomposition(&scalar);
+        let k2 = if is_k2_positive { k2 } else { -k2 };
+
+        assert_eq!(-k2 * LAMBDA + k1, scalar);
 
         let cs = ConstraintSystem::<Fq>::new_ref();
         let scalar_var =
             FqVar::new_witness(cs.clone(), || Ok(Fq::from(scalar.into_repr())))
                 .unwrap();
-        let _k_vars =
+        let _res =
             scalar_decomposition_gadget(cs.clone(), &scalar_var).unwrap();
         println!(
             "number of constraints for decomposition: {}",
@@ -190,7 +194,7 @@ fn test_boolean_fp_var_conversion() {
 #[test]
 fn test_glv_circuit() {
     let mut rng = ark_std::test_rng();
-    for _ in 0..10 {
+    for _ in 0..100 {
         let cs = ConstraintSystem::<Fq>::new_ref();
         let scalar: Fr = Fr::rand(&mut rng);
         let point: EdwardsAffine = rng.gen();

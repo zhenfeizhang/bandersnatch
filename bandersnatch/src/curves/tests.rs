@@ -3,7 +3,7 @@ use ark_algebra_test_templates::{curves::*, groups::*};
 use ark_ec::{
     msm::VariableBaseMSM as ArkVariableBaseMSM, AffineCurve, ProjectiveCurve,
 };
-use ark_ff::{bytes::FromBytes, field_new, Zero};
+use ark_ff::{bytes::FromBytes, field_new, BigInteger, PrimeField, Zero};
 use ark_std::{rand::Rng, str::FromStr, test_rng, vec::Vec};
 
 #[test]
@@ -145,16 +145,29 @@ fn test_psi() {
 
 #[test]
 fn test_decomp() {
+    let lambda: Fr = field_new!(Fr, "8913659658109529928382530854484400854125314752504019737736543920008458395397");
+
     let scalar: Fr = field_new!(
         Fr,
         "4257185345094557079734489188109952172285839137338142340240392707284963971010"
     );
     let k1: Fr = field_new!(Fr, "30417741863887432744214758610616508258");
-    let k2: Fr = field_new!(Fr, "-6406990765953933188067911864924578940");
+    let k2: Fr = field_new!(Fr, "6406990765953933188067911864924578940");
     assert_eq!(
         BandersnatchParameters::scalar_decomposition(&scalar),
-        (k1, k2)
-    )
+        (k1, k2, true)
+    );
+    assert_eq!(k1 - k2 * lambda, scalar);
+
+    for _ in 0..100 {
+        let (k1, k2, is_k2_pos) =
+            BandersnatchParameters::scalar_decomposition(&scalar);
+        assert!(get_bits(&k1.into_repr().to_bits_le()) <= 128);
+        assert!(get_bits(&k2.into_repr().to_bits_le()) <= 128);
+        let k2 = if is_k2_pos { k2 } else { -k2 };
+
+        assert_eq!(k1 - k2 * lambda, scalar,);
+    }
 }
 
 #[test]
@@ -181,7 +194,8 @@ fn test_fixed_base_glv() {
     use ark_std::{rand::Rng, test_rng};
 
     let mut rng = test_rng();
-    for _ in 0..100 {
+    for i in 0..100 {
+        println!("{}", i);
         let a: EdwardsProjective = rng.gen();
         let base: Vec<[EdwardsProjective; 4]> =
             <BandersnatchParameters as FixedBaseGLV>::preprocessing(a);
@@ -215,10 +229,10 @@ fn test_2sm() {
         "4257185345094557079734489188109952172285839137338142340240392707284963971010"
     );
     let k1: Fr = field_new!(Fr, "30417741863887432744214758610616508258");
-    let k2: Fr = field_new!(Fr, "-6406990765953933188067911864924578940");
+    let k2: Fr = field_new!(Fr, "6406990765953933188067911864924578940");
     assert_eq!(
         BandersnatchParameters::scalar_decomposition(&scalar),
-        (k1, k2)
+        (k1, k2, true)
     );
 
     let res = EdwardsAffine::from_str(
@@ -228,8 +242,9 @@ fn test_2sm() {
     .unwrap();
 
     let tmp = base_point.mul(scalar);
-    let res2 = super::glv::two_scalar_mul(&base_point, &k1, &psi_point, &k2)
-        .into_affine();
+    let res2 =
+        super::glv::two_scalar_mul(&base_point, &k1, &psi_point, &k2, true)
+            .into_affine();
 
     assert_eq!(tmp.into_affine(), res);
     assert_eq!(res, res2);
@@ -263,6 +278,7 @@ fn test_rnd_mul() {
 
         assert_eq!(b.into_affine(), c.into_affine())
     }
+    // assert!(false)
 }
 
 #[test]
@@ -288,4 +304,17 @@ fn test_msm() {
 
         assert_eq!(res1, res2)
     }
+}
+
+/// return the highest non-zero bits of a bit string.
+fn get_bits(a: &[bool]) -> u16 {
+    let mut res = 256;
+    for e in a.iter().rev() {
+        if !e {
+            res -= 1;
+        } else {
+            return res;
+        }
+    }
+    res
 }

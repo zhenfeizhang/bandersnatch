@@ -33,7 +33,7 @@ pub trait GLVParameters: Send + Sync + 'static + ModelParameters {
     /// decompose a scalar s into k1, k2, s.t. s = k1 + lambda k2
     fn scalar_decomposition(
         k: &Self::ScalarField,
-    ) -> (Self::ScalarField, Self::ScalarField);
+    ) -> (Self::ScalarField, Self::ScalarField, bool);
 
     /// perform GLV multiplication
     fn glv_mul(
@@ -94,11 +94,13 @@ impl GLVParameters for BandersnatchParameters {
             .into_affine()
     }
 
-    /// Decompose a scalar s into k1, k2, s.t. s = k1 + lambda k2
-    /// via a Babai's nearest plane algorithm.
+    /// Decompose a scalar s into k1, k2, s.t.
+    ///     scalar = k1 - k2_sign * k2 * lambda
+    /// via a Babai's nearest plane algorithm
+    /// Guarantees that k1 and k2 are less than 128 bits.
     fn scalar_decomposition(
         scalar: &Self::ScalarField,
-    ) -> (Self::ScalarField, Self::ScalarField) {
+    ) -> (Self::ScalarField, Self::ScalarField, bool) {
         let tmp: BigInteger256 = (*scalar).into();
         let scalar_z: BigUint = tmp.into();
 
@@ -108,24 +110,36 @@ impl GLVParameters for BandersnatchParameters {
         let tmp: BigInteger256 = Self::COEFF_N12.into();
         let n12: BigUint = tmp.into();
 
+        let tmp: BigInteger256 = Self::COEFF_N21.into();
+        let n21: BigUint = tmp.into();
+
+        let tmp: BigInteger256 = Self::COEFF_N22.into();
+        let n22: BigUint = tmp.into();
+
         let r: BigUint = <FrParameters as FpParameters>::MODULUS.into();
+        let r_over_2 = &r / BigUint::from(2u8);
 
         // beta = vector([n,0]) * self.curve.N_inv
-        let beta_1 = scalar_z.clone() * n11;
-        let beta_2 = scalar_z * n12;
+        let beta_1 = &scalar_z * &n11;
+        let beta_2 = &scalar_z * &n12;
 
-        let beta_1 = beta_1 / r.clone();
-        let beta_2 = beta_2 / r;
+        let beta_1 = &beta_1 / &r;
+        let beta_2 = &beta_2 / &r;
 
         // b = vector([int(beta[0]), int(beta[1])]) * self.curve.N
-        let beta_1 = Fr::from(beta_1);
-        let beta_2 = Fr::from(beta_2);
-        let b1 = beta_1 * Self::COEFF_N11 + beta_2 * Self::COEFF_N21;
-        let b2 = beta_1 * Self::COEFF_N12 + beta_2 * Self::COEFF_N22;
+        let b1: BigUint = &beta_1 * &n11 + &beta_2 * &n21;
+        let b2: BigUint = (&beta_1 * &n12 + &beta_2 * &n22) % r;
 
-        let k1 = (*scalar) - b1;
-        let k2 = -b2;
-        (k1, k2)
+        let k1 = Fr::from(scalar_z - b1);
+        let is_k2_pos = b2 < r_over_2;
+
+        let k2 = if is_k2_pos {
+            Fr::from(b2)
+        } else {
+            -Fr::from(b2)
+        };
+
+        (k1, k2, is_k2_pos)
     }
 
     /// perform GLV multiplication
@@ -134,8 +148,8 @@ impl GLVParameters for BandersnatchParameters {
         scalar: &Self::ScalarField,
     ) -> Self::CurveProjective {
         let psi_base = Self::endomorphism(base);
-        let (k1, k2) = Self::scalar_decomposition(scalar);
-        two_scalar_mul(base, &k1, &psi_base, &k2)
+        let (k1, k2, k2_sign) = Self::scalar_decomposition(scalar);
+        two_scalar_mul(base, &k1, &psi_base, &k2, k2_sign)
     }
 }
 
@@ -147,22 +161,15 @@ pub fn two_scalar_mul(
     scalar_1: &Fr,
     endor_base: &crate::EdwardsAffine,
     scalar_2: &Fr,
+    scalar_2_is_positive: bool,
 ) -> crate::EdwardsProjective {
-    let mut b1 = (*base).into_projective();
-    let mut s1 = *scalar_1;
+    let b1 = (*base).into_projective();
+    let s1 = *scalar_1;
     let mut b2 = (*endor_base).into_projective();
-    let mut s2 = *scalar_2;
+    let s2 = *scalar_2;
 
-    let r_over_2: Fr =
-        <FrParameters as FpParameters>::MODULUS_MINUS_ONE_DIV_TWO.into();
-
-    if s1 > r_over_2 {
-        b1 = -b1;
-        s1 = -s1;
-    }
-    if s2 > r_over_2 {
+    if scalar_2_is_positive {
         b2 = -b2;
-        s2 = -s2;
     }
     let s1: BigInteger256 = s1.into();
     let s2: BigInteger256 = s2.into();
@@ -173,6 +180,7 @@ pub fn two_scalar_mul(
     let s2_bits = s2.to_bits_le();
     let s1_len = get_bits(&s1_bits);
     let s2_len = get_bits(&s2_bits);
+
     let len = max(s1_len, s2_len) as usize;
 
     let mut res = crate::EdwardsProjective::zero();
@@ -192,7 +200,7 @@ pub fn two_scalar_mul(
 }
 
 /// return the highest non-zero bits of a bit string.
-fn get_bits(a: &[bool]) -> u16 {
+pub(crate) fn get_bits(a: &[bool]) -> u16 {
     let mut res = 256;
     for e in a.iter().rev() {
         if !e {
@@ -220,41 +228,31 @@ pub fn multi_scalar_mul_with_glv(
     let mut bases_ext = Vec::new();
     let mut scalars_ext = Vec::new();
 
-    let r_over_2: Fr =
-        <FrParameters as FpParameters>::MODULUS_MINUS_ONE_DIV_TWO.into();
-
     for i in 0..bases.len() {
         let phi =
             <BandersnatchParameters as GLVParameters>::endomorphism(&bases[i]);
-        let (k1, k2) =
+        let (k1, k2, is_k2_positive) =
             <BandersnatchParameters as GLVParameters>::scalar_decomposition(
                 &scalars[i],
             );
-        if k1 > r_over_2 {
-            bases_ext.push(-bases[i]);
-            scalars_ext.push((-k1).into_repr());
-        } else {
-            bases_ext.push(bases[i]);
-            scalars_ext.push(k1.into_repr());
-        }
+        bases_ext.push(bases[i]);
+        scalars_ext.push(k1.into_repr());
 
-        if k2 > r_over_2 {
+        if is_k2_positive {
             bases_ext.push(-phi);
-            scalars_ext.push((-k2).into_repr());
         } else {
             bases_ext.push(phi);
-            scalars_ext.push(k2.into_repr());
         }
+
+        scalars_ext.push(k2.into_repr());
     }
     let mut len = 0;
     for e in scalars_ext.iter() {
         let l = get_bits(&e.to_bits_le());
-        // println!("{}", l);
         if l > len {
             len = l
         }
     }
-    // println!("{} {}", bases.len(), len);
     multi_scalar_mul(&bases_ext, &scalars_ext, len as u32)
 }
 

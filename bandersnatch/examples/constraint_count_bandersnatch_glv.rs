@@ -81,7 +81,8 @@ impl ConstraintSynthesizer<Fq> for GroupOpCircuit {
         println!("cs for endomorphism var: {}", cs.num_constraints() - _cs_no);
         let _cs_no = cs.num_constraints();
 
-        let k = scalar_decomposition_gadget(cs.clone(), &scalar_var)?;
+        let (k, k2_sign) =
+            scalar_decomposition_gadget(cs.clone(), &scalar_var)?;
 
         #[cfg(debug_assertions)]
         println!(
@@ -90,8 +91,9 @@ impl ConstraintSynthesizer<Fq> for GroupOpCircuit {
         );
         let _cs_no = cs.num_constraints();
 
-        let res_var_recomputed =
-            multi_scalar_mul_gadget(&base_var, &k[0], &phi_var, &k[1])?;
+        let res_var_recomputed = multi_scalar_mul_gadget(
+            &base_var, &k[0], &phi_var, &k[1], &k2_sign,
+        )?;
 
         #[cfg(debug_assertions)]
         println!("cs for msm: {}", cs.num_constraints() - _cs_no);

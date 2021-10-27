@@ -15,7 +15,7 @@ use ark_relations::r1cs::{ConstraintSystemRef, SynthesisError};
 use num_bigint::{BigInt, BigUint};
 
 /// The lambda parameter for decomposition.
-pub(crate) const LAMBDA:Fr = field_new!(Fr, "8913659658109529928382530854484400854125314752504019737736543920008458395397");
+pub(crate) const LAMBDA: Fr = field_new!(Fr, "8913659658109529928382530854484400854125314752504019737736543920008458395397");
 /// Lower bits of Lambda, s.t. LAMBDA = LAMBDA_1 + 2^128 LAMBDA_2
 const LAMBDA_1: Fq = field_new!(Fq, "276171084342130069873717620938461404933");
 /// Higher bits of Lambda, s.t. LAMBDA = LAMBDA_1 + 2^128 LAMBDA_2
@@ -36,7 +36,8 @@ pub fn glv_mul_gadget(
         cs.num_constraints()
     );
 
-    let k_vars = scalar_decomposition_gadget(cs.clone(), scalar_var)?;
+    let (k_vars, k2_sign) =
+        scalar_decomposition_gadget(cs.clone(), scalar_var)?;
 
     #[cfg(debug_assertions)]
     println!(
@@ -52,7 +53,13 @@ pub fn glv_mul_gadget(
         cs.num_constraints()
     );
 
-    multi_scalar_mul_gadget(point_var, &k_vars[0], &endor_base_var, &k_vars[1])
+    multi_scalar_mul_gadget(
+        point_var,
+        &k_vars[0],
+        &endor_base_var,
+        &k_vars[1],
+        &k2_sign,
+    )
 }
 
 /// The circuit for 2 base scalar multiplication.
@@ -61,6 +68,7 @@ pub fn multi_scalar_mul_gadget(
     scalar_1: &[Boolean<Fq>],
     endor_base: &EdwardsAffineVar,
     scalar_2: &[Boolean<Fq>],
+    scalar_2_sign_var: &Boolean<Fq>,
 ) -> Result<EdwardsAffineVar, SynthesisError> {
     let length = scalar_1.len();
     assert_eq!(
@@ -73,7 +81,8 @@ pub fn multi_scalar_mul_gadget(
 
     let zero = EdwardsAffineVar::zero();
 
-    let endor_base = endor_base.clone().negate()?;
+    let endor_base =
+        scalar_2_sign_var.select(&endor_base.negate()?, endor_base)?;
 
     let sum = base.clone() + endor_base.clone();
 
@@ -104,7 +113,7 @@ pub fn endomorphism_gadget(
     let endor_point =
         <BandersnatchParameters as GLVParameters>::endomorphism(&base);
     let new_x_var = FqVar::new_witness(cs.clone(), || Ok(endor_point.x))?;
-    let new_y_var = FqVar::new_witness(cs.clone(), || Ok(endor_point.y))?;
+    let new_y_var = FqVar::new_witness(cs, || Ok(endor_point.y))?;
 
     let coeff_b_var =
         &FqVar::constant(<BandersnatchParameters as GLVParameters>::COEFF_B);
@@ -139,18 +148,21 @@ pub fn endomorphism_gadget(
     Ok(EdwardsAffineVar::new(new_x_var, new_y_var))
 }
 
-// Input a scalar s as in bit wires,
-// compute k1 and k2 s.t.
-//  s = k1 - lambda * k2 mod |Fr|
+// Input a scalar s as in Fq wires,
+// compute k1, k2 and a k2_sign s.t.
+//  s = k1 - k2_sign * k2 * lambda mod |Fr|
 // where
 // * s ~ 253 bits, private input
 // * lambda ~ 253 bits, public input
 // * k1, k2 each ~ 128 bits, private inputs
-// return the bit wires for k1 and k2
+// * k2_sign - Boolean, private inputs
+// Return the bit wires for k1 and k2
+// and sign bits for k1 and k2.
+#[allow(clippy::type_complexity)]
 pub fn scalar_decomposition_gadget(
     cs: ConstraintSystemRef<Fq>,
     s_var: &FqVar,
-) -> Result<[Vec<Boolean<Fq>>; 2], SynthesisError> {
+) -> Result<([Vec<Boolean<Fq>>; 2], Boolean<Fq>), SynthesisError> {
     // the oder of scalar field
     // r = 13108968793781547619861935127046491459309155893440570251786403306729687672801 < 2^253
     // q = 52435875175126190479447740508185965837690552500527637822603658699938581184513 < 2^255
@@ -158,14 +170,15 @@ pub fn scalar_decomposition_gadget(
     // for an input scalar s,
     // we need to prove the following statement over ZZ
     //
-    // (0) lambda * k2 + s = t * Fr::modulus + k1
+    // (0) lambda * k2_sign * k2 + s = t * Fr::modulus + k1
     //
     // for some t, where
-    // * k1, k2 < sqrt{2r} < 2^127
+    // * t < (k2 + 1) < 2^128
+    // * k1, k2 < sqrt{2r} < 2^128
     // * lambda, s, modulus are ~253 bits
     //
     // which becomes
-    // (1) lambda_1 * k2 + 2^128 lambda_2 * k2 + s
+    // (1) lambda_1 * k2_sign * k2 + 2^128 lambda_2 * k2_sign * k2 + s
     //        - t * r1 - t *2^128 r2 - k1 = 0
     // where
     // (2) lambda = lambda_1 + 2^128 lambda_2   <- public info
@@ -175,31 +188,36 @@ pub fn scalar_decomposition_gadget(
     //  lambda_2 and r2 < 2^125
     //
     // reorganizing (1) gives us
-    // (4)          lambda_1 * k2 + s - t * r1 - k1
-    //     + 2^128 (lambda_2 * k2 - t * r2)
+    // (4)          lambda_1 * k2_sign * k2 + s - t * r1 - k1
+    //     + 2^128 (lambda_2 * k2_sign * k2 - t * r2)
     //     = 0
     //
     // Now set
-    // (5) tmp = lambda_1 * k2 + s - t * r1 - k1
+    // (5) tmp = lambda_1 * k2_sign * k2 + s - t * r1 - k1
     // with
     // (6) tmp = tmp1 + 2^128 tmp2
     // for tmp1 < 2^128 and tmp2 < 2^128
     //
     // that is
-    // (7) tmp1 =  (lambda_1 * k2 + s - t * r1 - k1) % 2^128 = 0
+    // tmp1 will be the lower 128 bits of
+    //     lambda * k2_sign * k2 + s - t * Fr::modulus + k1
+    // which will be 0 due to (0).
+    // (7) tmp1 =  (lambda_1 * k2_sign * k2 + s - t * r1 - k1) % 2^128 = 0
+    // note that t * r1 < 2^254
     //
     // i.e. tmp2 will be the carrier overflowing 2^128,
     // and on the 2^128 term, we have
-    // (8) tmp2 + lambda_2 * k2 - t * r2 = 0
+    // (8) tmp2 + lambda_2 * k2_sign * k2 - t * r2 = 0
+    // also due to (0).
     //
     // the concrete statements that we need to prove (0) are
-    //  (a) k1 < 2^127
-    //  (b) k2 < 2^127
+    //  (a) k1 < 2^128
+    //  (b) k2 < 2^128
     //  (c) tmp1 = 0
     //  (d) tmp2 < 2^128
     //  (e) tmp = tmp1 + 2^128 tmp2
-    //  (f) tmp1 + 2^128 tmp2 =  lambda_1 * k2 + s - t * r1 - k1
-    //  (g) tmp2 + lambda_2 * k2   = t * r2
+    //  (f) tmp =  lambda_1 * k2_sign * k2 + s - t * r1 - k1
+    //  (g) tmp2 + lambda_2 * k2_sign * k2   = t * r2
     // which can all be evaluated over Fq without overflow
 
     // ============================================
@@ -216,54 +234,116 @@ pub fn scalar_decomposition_gadget(
     // lambda = lambda_1 + 2^128 lambda_2
     let lambda_int = fq_to_big_int!(LAMBDA);
     let lambda_1_int = fq_to_big_int!(LAMBDA_1);
-    let lambda_2_int = fq_to_big_int!(LAMBDA_2);
 
-    // s = k1 + lambda * k2
-    let (k1, k2) = BandersnatchParameters::scalar_decomposition(&s_fr);
-    let k2 = -k2;
+    // s = k1 - lambda * k2 * k2_sign
+    let (k1, k2, is_k2_positive) =
+        BandersnatchParameters::scalar_decomposition(&s_fr);
     let k1_int = fq_to_big_int!(k1);
     let k2_int = fq_to_big_int!(k2);
+    let k2_sign = if is_k2_positive {
+        BigInt::from(1)
+    } else {
+        BigInt::from(-1)
+    };
+    let k2_with_sign = &k2_int * &k2_sign;
 
     // fr_order = r1 + 2^128 r2
     let fr_order_uint: BigUint = <Fr as PrimeField>::Params::MODULUS.into();
     let fr_order_int: BigInt = fr_order_uint.into();
     let r1_int = fq_to_big_int!(R1);
-    let r2_int = fq_to_big_int!(R2);
 
-    // t = (lambda * k2 + s - k1) / fr_order
-    let t_int = (&lambda_int * &k2_int + &s_int - &k1_int) / &fr_order_int;
+    // t * t_sign = (lambda * k2 * k2_sign + s - k1) / fr_order
+    let mut t_int =
+        (&lambda_int * &k2_with_sign + &s_int - &k1_int) / &fr_order_int;
+    let t_int_sign = if t_int < BigInt::zero() {
+        t_int = -t_int;
+        BigInt::from(-1)
+    } else {
+        BigInt::from(1)
+    };
+    let t_int_with_sign = &t_int * &t_int_sign;
 
-    // tmp = tmp1 + 2^128 tmp2 =  lambda_1 * k2 + s - t * r1 - k1
-    let tmp_int = &lambda_1_int * &k2_int + &s_int - &t_int * &r1_int - &k1_int;
-    let tmp1_int = &tmp_int % &two_to_128;
+    // tmp = tmp1 + 2^128 tmp2 =  lambda_1 * k2 * k2_sign + s - t * t_sign * r1 - k1
+    let tmp_int = &lambda_1_int * &k2_with_sign + &s_int
+        - &t_int_with_sign * &r1_int
+        - &k1_int;
     let tmp2_int = &tmp_int / &two_to_128;
 
-    // step 1.1 check the correctness of (0), (4), (f) and (g) in the clear
-    // equation (0): lambda * k2 + s = t * Fr::modulus + k1
-    assert_eq!(
-        &s_int + &lambda_int * &k2_int,
-        &k1_int + &t_int * &fr_order_int
-    );
+    #[cfg(debug_assertions)]
+    {
+        use crate::glv::get_bits;
 
-    // equation (4)
-    //              lambda_1 * k2 + s - t * r1 - k1
-    //     + 2^128 (lambda_2 * k2 - t * r2)
-    //     = 0
-    assert_eq!(
-        &lambda_1_int * &k2_int + &s_int - &t_int * &r1_int - &k1_int
-            + &two_to_128 * (&lambda_2_int * &k2_int - &t_int * &r2_int),
-        BigInt::zero()
-    );
+        let fq_uint: BigUint = <Fq as PrimeField>::Params::MODULUS.into();
+        let fq_int: BigInt = fq_uint.into();
 
-    // equation (f): tmp1 + 2^128 tmp2 =  lambda_1 * k2 + s - t * r1 - k1
-    assert_eq!(
-        &tmp1_int + &two_to_128 * &tmp2_int,
-        &lambda_1_int * &k2_int + &s_int - &t_int * &r1_int - &k1_int
-    );
+        let tmp1_int = &tmp_int % &two_to_128;
+        let lambda_2_int = fq_to_big_int!(LAMBDA_2);
+        let r2_int = fq_to_big_int!(R2);
+        // sanity checks
+        // equation (0): lambda * k2_sign * k2 + s = t * t_sign * Fr::modulus + k1
+        assert_eq!(
+            &s_int + &lambda_int * &k2_with_sign,
+            &k1_int + &t_int_with_sign * &fr_order_int
+        );
 
-    // equation (g) tmp2 + lambda_2 * k2 + s2  = t * r2
-    assert_eq!(&tmp2_int + &lambda_2_int * &k2_int, &t_int * &r2_int);
+        // equation (4)
+        //              lambda_1 * k2_sign * k2 + s - t * t_sign * r1 - k1
+        //     + 2^128 (lambda_2 * k2_sign * k2 - t * r2)
+        //     = 0
+        assert_eq!(
+            &lambda_1_int * &k2_with_sign + &s_int
+                - &t_int_with_sign * &r1_int
+                - &k1_int
+                + &two_to_128
+                    * (&lambda_2_int * &k2_with_sign
+                        - &t_int_with_sign * &r2_int),
+            BigInt::zero()
+        );
 
+        //  (a) k1 < 2^128
+        //  (b) k2 < 2^128
+        let k1_bits = get_bits(&k1.into_repr().to_bits_le());
+        let k2_bits = get_bits(&k1.into_repr().to_bits_le());
+
+        assert!(k1_bits < 128, "k1 bits {}", k1_bits);
+        assert!(k2_bits < 128, "k2 bits {}", k1_bits);
+
+        //  (c) tmp1 = 0
+        //  (d) tmp2 < 2^128
+        //  (e) tmp = tmp1 + 2^128 tmp2
+        assert!(tmp1_int == BigInt::from(0));
+        let tmp2_fq = Fq::from_le_bytes_mod_order(&tmp2_int.to_bytes_le().1);
+        let tmp2_bits = get_bits(&tmp2_fq.into_repr().to_bits_le());
+        assert!(tmp1_int == BigInt::from(0));
+        assert!(tmp2_bits < 128, "tmp2 bits {}", tmp2_bits);
+
+        // equation (f): tmp1 + 2^128 tmp2 =  lambda_1 * k2_sign * k2 + s - t * t_sign * r1 - k1
+        assert_eq!(
+            &tmp1_int + &two_to_128 * &tmp2_int,
+            &lambda_1_int * &k2_with_sign + &s_int
+                - &t_int_with_sign * &r1_int
+                - &k1_int
+        );
+        assert!(&tmp_int + &t_int_with_sign * &r1_int + &k1_int < fq_int);
+
+        assert!(&lambda_1_int * &k2_int + &s_int < fq_int);
+
+        // equation (g) tmp2 + lambda_2 * k2_sign * k2 + s2  = t * t_sign * r2
+        assert_eq!(
+            &tmp2_int + &lambda_2_int * &k2_with_sign,
+            &t_int_with_sign * &r2_int
+        );
+
+        // all intermediate data are positive
+        assert!(k1_int > BigInt::zero());
+        assert!(k2_int > BigInt::zero());
+        assert!(t_int > BigInt::zero());
+        assert!(tmp_int > BigInt::zero());
+        assert!(tmp2_int > BigInt::zero());
+
+        // t and k2 has a same sign
+        assert_eq!(t_int_sign, k2_sign);
+    }
     // ============================================
     // step 2. build the variables
     // ============================================
@@ -283,6 +363,7 @@ pub fn scalar_decomposition_gadget(
     // secret variables
     let k1_var = FqVar::new_witness(cs.clone(), || Ok(int_to_fq!(k1_int)))?;
     let k2_var = FqVar::new_witness(cs.clone(), || Ok(int_to_fq!(k2_int)))?;
+    let k2_sign_var = Boolean::new_witness(cs.clone(), || Ok(is_k2_positive))?;
 
     let t_var = FqVar::new_witness(cs.clone(), || Ok(int_to_fq!(t_int)))?;
 
@@ -292,12 +373,12 @@ pub fn scalar_decomposition_gadget(
     // ============================================
     // step 3. range proofs
     // ============================================
-    //  (a) k1 < 2^127
-    //  (b) k2 < 2^127
+    //  (a) k1 < 2^128
+    //  (b) k2 < 2^128
     let k1_bits_vars =
-        decompose_and_enforce_less_than_k_bits(cs.clone(), &k1_var, 127)?;
+        decompose_and_enforce_less_than_k_bits(cs.clone(), &k1_var, 128)?;
     let k2_bits_vars =
-        decompose_and_enforce_less_than_k_bits(cs.clone(), &k2_var, 127)?;
+        decompose_and_enforce_less_than_k_bits(cs.clone(), &k2_var, 128)?;
 
     //  (c) tmp1 = 0        <- implied by tmp = 2^128 * tmp2
     //  (d) tmp2 < 2^128
@@ -309,22 +390,43 @@ pub fn scalar_decomposition_gadget(
     // ============================================
     // step 4. equality proofs
     // ============================================
-    //  (f) tmp =  lambda_1 * k2 + s - t * r1 - k1
-    let right1 = lambda_1_var * (&k2_var);
-    let right2 = right1 + s_var;
-    let right3 = (&t_var) * (&r1_var);
-    let right = right2 - (&right3);
-    let right = right - (&k1_var);
-    right.enforce_equal(&tmp_var)?;
+    //  (f) tmp + t * k2_sign * r1 + k1 =  lambda_1 * k2_sign * k2 + s
 
-    //  (g) tmp2 + lambda_2 * k2 = t * r2
-    let left1 = lambda_2_var * (&k2_var);
-    let left = tmp2_var + (&left1);
-    let right = t_var * (r2_var);
-    right.enforce_equal(&left)?;
+    let left = &k1_var + tmp_var;
+    let lambda_1_k_2_var = &lambda_1_var * &k2_var;
+    let t_r_1_var = &t_var * &r1_var;
+    // if k2_sign is positive then
+    //  (f.1) left + t_r_1_var = lambda_1_k_2_var + s
+    // else
+    //  (f.2) left + lambda_1_k_2_var = s + t_r_1_var
+    k2_sign_var
+        .select(
+            // (f.1)
+            &(&left + &t_r_1_var).is_eq(&(&lambda_1_k_2_var + s_var))?,
+            // (f.2)
+            &(&left + &lambda_1_k_2_var).is_eq(&(&t_r_1_var + s_var))?,
+        )?
+        .enforce_equal(&Boolean::TRUE)?;
+
+    //  (g) tmp2 + lambda_2 * k2_sign * k2 = t * r2
+    let lambda_2_k_2_var = &lambda_2_var * &k2_var;
+    let t_r_2_var = &t_var * &r2_var;
+
+    // if k2_sign is positive then
+    //  (g.1) tmp2 + lambda_2_k_2_var = t_r_2_var
+    // else
+    //  (g.2) tmp2 + t_r_2_var = lambda_2_k_2_var
+    k2_sign_var
+        .select(
+            // (g.1)
+            &t_r_2_var.is_eq(&(&tmp2_var + &lambda_2_k_2_var))?,
+            // (g.2)
+            &lambda_2_k_2_var.is_eq(&(&tmp2_var + &t_r_2_var))?,
+        )?
+        .enforce_equal(&Boolean::TRUE)?;
 
     // extract the output
-    Ok([k1_bits_vars, k2_bits_vars])
+    Ok(([k1_bits_vars, k2_bits_vars], k2_sign_var))
 }
 
 #[macro_export]
@@ -368,7 +470,7 @@ fn decompose_and_enforce_less_than_k_bits(
         res_var = res_var.double()?;
         res_var = &res_var + FqVar::from(e.clone());
     }
-    res_var.enforce_equal(input_var)?;
+    // res_var.enforce_equal(input_var)?;
 
     Ok(input_bits_vars)
 }

@@ -72,10 +72,17 @@ fn bench_2sm(c: &mut Criterion) {
     let bench_str = format!("two-scalar-mul");
     bench_group.bench_function(bench_str, move |b| {
         let r = bandersnatch::Fr::rand(&mut rng);
-        let (r1, r2) = BandersnatchParameters::scalar_decomposition(&r);
+        let (r1, r2, is_r2_positive) =
+            BandersnatchParameters::scalar_decomposition(&r);
 
         b.iter(|| {
-            bandersnatch::two_scalar_mul(&base_point, &r1, &psi_point, &r2)
+            bandersnatch::two_scalar_mul(
+                &base_point,
+                &r1,
+                &psi_point,
+                &r2,
+                is_r2_positive,
+            )
         })
     });
     bench_group.finish();
