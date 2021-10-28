@@ -470,7 +470,7 @@ fn decompose_and_enforce_less_than_k_bits(
         res_var = res_var.double()?;
         res_var = &res_var + FqVar::from(e.clone());
     }
-    // res_var.enforce_equal(input_var)?;
+    res_var.enforce_equal(input_var)?;
 
     Ok(input_bits_vars)
 }
